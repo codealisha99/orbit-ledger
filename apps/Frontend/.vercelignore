@@ -1,6 +1,5 @@
 **/node_modules
 **/.next-dev
-**/dist
 **/.turbo
 .env*
 !.env.example
