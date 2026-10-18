@@ -263,22 +263,6 @@ export default function OrdersPanel({ onRefreshReady }: { onRefreshReady?: (refr
           <div className="text-center py-8 text-[var(--nt-muted)]">Loading...</div>
         ) : activeTab === "open" ? (
           <>
-            <div className="mb-4 p-3 bg-[color:color-mix(in_srgb,var(--nt-surface2)_60%,transparent)] backdrop-blur-sm border border-[var(--nt-border)] rounded-md">
-              <div className="flex items-center gap-6 text-sm text-[var(--nt-muted)]">
-                <div className="flex items-center gap-2">
-                  <span className="text-green-500">✓</span>
-                  <span>TP/SL Hit</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-yellow-500 animate-pulse">!</span>
-                  <span>Close to TP/SL</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-red-500 animate-pulse">!</span>
-                  <span>Near Liquidation</span>
-                </div>
-              </div>
-            </div>
             {openWithPnl.length > 0 ? (
               <div className="overflow-x-auto h-full">
                 <table className="w-full text-sm">
@@ -511,8 +495,9 @@ export default function OrdersPanel({ onRefreshReady }: { onRefreshReady?: (refr
                 </table>
               </div>
             ) : (
-              <div className="text-center py-12 text-[var(--nt-muted)]">
-                No open positions
+              <div className="flex h-full min-h-40 flex-col items-center justify-center px-4 text-center">
+                <span className="text-sm font-medium text-[var(--nt-text)]">No open positions</span>
+                <span className="mt-1 text-xs text-[var(--nt-muted)]">Your active trades will appear here.</span>
               </div>
             )}
 
@@ -698,7 +683,10 @@ export default function OrdersPanel({ onRefreshReady }: { onRefreshReady?: (refr
             </table>
           </div>
         ) : (
-          <div className="text-center py-12 text-[var(--nt-muted)]">No order history</div>
+          <div className="flex min-h-40 flex-col items-center justify-center text-center">
+            <span className="text-sm font-medium text-[var(--nt-text)]">No order history yet</span>
+            <span className="mt-1 text-xs text-[var(--nt-muted)]">Closed trades will appear here.</span>
+          </div>
         )}
       </div>
     </div>

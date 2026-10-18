@@ -5,12 +5,10 @@ import { useRouter } from "next/navigation";
 import ChartComponent from "@/components/Chart";
 import { Channels, Duration } from "@/utils/constants";
 import type { SYMBOL } from "@/utils/constants";
-import AskBids from "@/components/AskBidsTable";
 import { findUserAmount } from "@/api/trade";
 import OrdersPanel from "@/components/OrdersPanel";
 import BuySell from "@/components/BuySell";
 import { toDisplayPrice } from "@/utils/utils";
-import { fetchPlatformProfit, type PlatformProfitResponse } from "@/api/profit";
 import { subscribePrices, type LivePrices } from "@/utils/price_store";
 import toast from "react-hot-toast";
 
@@ -18,8 +16,8 @@ export default function Trading() {
   const [duration, setDuration] = useState<Duration>(Duration.candles_1m);
   const [symbol, setSymbol] = useState<SYMBOL>(Channels.BTCUSDT);
   const [prices, setPrices] = useState({ askPrice: 0, bidPrice: 0 });
-  const [platformProfit, setPlatformProfit] = useState<PlatformProfitResponse | null>(null);
   const [priceChanges, setPriceChanges] = useState<Record<string, number>>({});
+  const [marketPrices, setMarketPrices] = useState<LivePrices>({ BTC: { bid: 0, ask: 0 }, ETH: { bid: 0, ask: 0 }, SOL: { bid: 0, ask: 0 } });
   const openPricesRef = useRef<Record<string, number>>({});
   const refreshOrdersRef = useRef<(() => void) | null>(null);
   const router = useRouter();
@@ -44,22 +42,8 @@ export default function Trading() {
   }, [router]);
 
   useEffect(() => {
-    const loadPlatformProfit = async () => {
-      try {
-        const data = await fetchPlatformProfit();
-        setPlatformProfit(data);
-      } catch (error) {
-        console.error("Failed to load platform profit:", error);
-      }
-    };
-
-    loadPlatformProfit();
-    const interval = setInterval(loadPlatformProfit, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
     return subscribePrices((livePrices: LivePrices) => {
+      setMarketPrices(livePrices);
       const symbols: Array<keyof LivePrices> = ["BTC", "ETH", "SOL"];
       symbols.forEach((sym) => {
         const bid = livePrices[sym].bid;
@@ -205,138 +189,81 @@ export default function Trading() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[var(--nt-bg)] overflow-hidden flex flex-col">
-      <div className="fixed inset-0 bg-[var(--nt-bg)]">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-gradient-to-br from-white/5 via-white/0 to-transparent blur-3xl"></div>
-        <div className="absolute top-1/3 right-1/4 w-80 h-80 bg-gradient-to-bl from-white/5 via-transparent to-transparent blur-3xl"></div>
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
-      </div>
+    <main className="min-h-screen bg-[var(--nt-bg)] text-[var(--nt-text)]">
+      <div className="mx-auto flex min-h-screen max-w-[1920px] flex-col gap-3 p-3 md:p-4">
+        <header className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--nt-border)] bg-[var(--nt-surface)] py-3 pl-3 pr-14 md:pl-4 md:pr-14">
+          <a href="/" className="flex min-h-10 items-center gap-2 pr-2 text-[var(--nt-text)]" aria-label="OrbitLedger home">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--nt-accent)] text-sm font-bold text-white">O</span>
+            <span className="font-semibold tracking-tight">OrbitLedger</span>
+          </a>
 
-      <div className="relative z-10 w-full h-full flex flex-col p-4">
-        <div className="bg-[color:color-mix(in_srgb,var(--nt-surface)_90%,transparent)] backdrop-blur-xl border border-[var(--nt-border)] p-3 rounded-xl mb-4 flex flex-col sm:flex-row gap-2">
-          <div className="flex gap-2 overflow-x-auto flex-shrink-0">
+          <div className="grid w-full min-w-0 grid-cols-3 gap-2 sm:flex-1">
             {([
-              { channel: Channels.BTCUSDT, label: "BTC/USDT", base: "BTC" },
-              { channel: Channels.ETHUSDT, label: "ETH/USDT", base: "ETH" },
-              { channel: Channels.SOLUSDT, label: "SOL/USDT", base: "SOL" },
-            ] as const).map(({ channel, label, base }) => {
+              { channel: Channels.BTCUSDT, base: "BTC" },
+              { channel: Channels.ETHUSDT, base: "ETH" },
+              { channel: Channels.SOLUSDT, base: "SOL" },
+            ] as const).map(({ channel, base }) => {
               const pct = priceChanges[base];
               const change = pct != null ? `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%` : "—";
               const up = pct == null || pct >= 0;
+              const quote = marketPrices[base];
               return (
-              <button
-                key={channel}
-                className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap flex-shrink-0 ${
-                  symbol === channel
-                    ? "bg-[color:color-mix(in_srgb,var(--nt-surface2)_10%,transparent)] text-[var(--nt-text)] border border-[color:color-mix(in_srgb,var(--nt-border)_30%,transparent)]"
-                    : "text-[var(--nt-text)] hover:bg-[color:color-mix(in_srgb,var(--nt-surface2)_5%,transparent)] border border-[var(--nt-border)]"
-                }`}
-                disabled={symbol === channel}
-                onClick={() => setSymbol(channel)}
-              >
-                <div className="flex items-center">
-                  <span className="font-medium text-sm">{label}</span>
-                  <span className={`ml-2 text-xs px-2 py-1 rounded ${up ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"}`}>
-                    {change}
+                <button
+                  key={channel}
+                  type="button"
+                  aria-pressed={symbol === channel}
+                  onClick={() => setSymbol(channel)}
+                  className={`min-w-0 rounded-lg border px-2.5 py-2 text-left transition-colors md:px-3 ${symbol === channel ? "border-[var(--nt-accent)] bg-[var(--nt-surface2)]" : "border-transparent hover:bg-[var(--nt-surface2)]"}`}
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="truncate text-xs font-semibold md:text-sm">{base}/USDT</span>
+                    <span className={`hidden rounded px-1.5 py-0.5 text-[10px] sm:inline ${up ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"}`}>{change}</span>
                   </span>
-                </div>
-              </button>
+                  <span className="mt-1 block truncate font-mono text-xs text-[var(--nt-muted)] md:text-sm">
+                    {quote.bid > 0 ? `$${toDisplayPrice(quote.bid)}` : "Waiting for price"}
+                  </span>
+                </button>
               );
             })}
           </div>
 
-          <div className="flex items-center gap-2 sm:ml-auto flex-wrap">
-            <div className="flex items-center bg-[var(--nt-surface2)] border border-[var(--nt-border)] px-3 py-2 rounded-lg">
-              <div className="flex items-center gap-2">
-                <div className="flex items-center justify-center bg-[color:color-mix(in_srgb,var(--nt-accent)_20%,transparent)] w-7 h-7 rounded-lg">
-                  <div className="w-2.5 h-2.5 bg-[var(--nt-accent)] rounded-full"></div>
-                </div>
-                <div>
-                  <div className="text-[9px] text-[var(--nt-muted)] font-medium uppercase tracking-wider">Platform Profit</div>
-                  <div className="text-sm font-bold text-[var(--nt-text)]">
-                    {platformProfit ? `$${(platformProfit.totalProfit / 100).toFixed(2)}` : "$0.00"}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-[var(--nt-surface2)] rounded-lg p-1 flex border border-[var(--nt-border)] overflow-x-auto max-w-full">
+          <div className="flex w-full flex-wrap items-center justify-between gap-2 border-t border-[var(--nt-border)] pt-2 sm:w-auto sm:border-0 sm:pt-0">
+            <div className="flex max-w-full items-center gap-0.5 overflow-x-auto rounded-lg bg-[var(--nt-surface2)] p-1" role="group" aria-label="Chart interval">
               {([
-                { d: Duration.candles_1m,  label: "1m" },
-                { d: Duration.candles_5m,  label: "5m" },
-                { d: Duration.candles_15m, label: "15m" },
-                { d: Duration.candles_1h,  label: "1h" },
-                { d: Duration.candles_4h,  label: "4h" },
-                { d: Duration.candles_1d,  label: "1d" },
-                { d: Duration.candles_1w,  label: "1w" },
+                { d: Duration.candles_1m, label: "1m" }, { d: Duration.candles_5m, label: "5m" },
+                { d: Duration.candles_15m, label: "15m" }, { d: Duration.candles_1h, label: "1h" },
+                { d: Duration.candles_4h, label: "4h" }, { d: Duration.candles_1d, label: "1d" },
+                { d: Duration.candles_1w, label: "1w" },
               ] as const).map(({ d, label }) => (
-                <button
-                  key={d}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition whitespace-nowrap ${
-                    duration === d
-                      ? "bg-[color:color-mix(in_srgb,var(--nt-surface2)_15%,transparent)] text-[var(--nt-text)]"
-                      : "text-[var(--nt-muted)] hover:text-[var(--nt-text)]"
-                  }`}
-                  disabled={duration === d}
-                  onClick={() => setDuration(d)}
-                >
+                <button key={d} type="button" aria-pressed={duration === d} onClick={() => setDuration(d)}
+                  className={`min-h-9 rounded-md px-2 text-xs font-medium transition-colors ${duration === d ? "bg-[var(--nt-bg)] text-[var(--nt-text)] shadow-sm" : "text-[var(--nt-muted)] hover:text-[var(--nt-text)]"}`}>
                   {label}
                 </button>
               ))}
             </div>
-
-            <button
-              onClick={() => router.push("/dashboard")}
-              className="bg-[color:color-mix(in_srgb,var(--nt-accent)_10%,transparent)] hover:bg-[color:color-mix(in_srgb,var(--nt-accent)_20%,transparent)] text-[var(--nt-accent)] border border-[color:color-mix(in_srgb,var(--nt-accent)_30%,transparent)] px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              Dashboard
-            </button>
-
-            <button
-              onClick={() => {
-                localStorage.removeItem("token");
-                localStorage.removeItem("userID");
-                router.push("/signin");
-              }}
-              className="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-grow grid grid-cols-12 gap-3 min-h-0 h-[calc(100vh-120px)]">
-          <div className="col-span-12 md:col-span-2 order-2 md:order-1 overflow-auto min-h-0 h-full">
-            <div className="bg-[color:color-mix(in_srgb,var(--nt-surface)_90%,transparent)] backdrop-blur-xl rounded-xl border border-[var(--nt-border)] p-3 h-full">
-              <h3 className="text-[var(--nt-text)] text-sm font-medium mb-3 flex justify-between items-center">
-                <span>Market Data</span>
-                <span className="text-xs bg-[color:color-mix(in_srgb,var(--nt-surface2)_10%,transparent)] text-[var(--nt-text)] px-2 py-1 rounded-md">Live</span>
-              </h3>
-              <AskBids symbol={symbol} />
+            <div className="flex items-center gap-1">
+              <button type="button" onClick={() => router.push("/dashboard")} className="min-h-10 rounded-lg px-3 text-sm text-[var(--nt-muted)] transition-colors hover:bg-[var(--nt-surface2)] hover:text-[var(--nt-text)]">Dashboard</button>
+              <button type="button" onClick={() => { localStorage.removeItem("token"); localStorage.removeItem("userID"); router.push("/signin"); }} className="min-h-10 rounded-lg px-3 text-sm text-[var(--nt-muted)] transition-colors hover:bg-red-500/10 hover:text-red-400">Log out</button>
             </div>
           </div>
+        </header>
 
-          <div className="col-span-12 md:col-span-10 order-1 md:order-2 flex flex-col md:flex-row overflow-hidden min-h-0 h-[calc(100vh-130px)]">
-            <div className="w-full h-[58vh] md:h-full md:w-3/4 flex flex-col gap-3 md:pr-3 min-h-0">
-              <div className="h-[64%] flex flex-col min-h-[280px]">
-                <ChartComponent symbol={symbol} duration={duration} onPriceUpdate={setPrices} />
-              </div>
-              <div className="h-[36%] min-h-[200px]">
-                <OrdersPanel onRefreshReady={(fn) => { refreshOrdersRef.current = fn; }} />
-              </div>
-            </div>
+        <div className="grid min-h-[calc(100vh-112px)] flex-1 grid-cols-1 gap-3 lg:h-[calc(100vh-112px)] lg:min-h-[620px] lg:grid-cols-[minmax(0,1fr)_360px]">
+          <section className="grid min-h-[620px] min-w-0 grid-rows-[minmax(340px,1.8fr)_minmax(240px,1fr)] gap-3 lg:min-h-0" aria-label="Market workspace">
+            <ChartComponent symbol={symbol} duration={duration} onPriceUpdate={setPrices} />
+            <OrdersPanel onRefreshReady={(fn) => { refreshOrdersRef.current = fn; }} />
+          </section>
 
-            <div className="w-full md:w-1/4 min-h-[360px] md:h-full">
-              <BuySell
-                symbol={symbol}
-                askPrice={toDisplayPrice(prices.askPrice)}
-                bidPrice={toDisplayPrice(prices.bidPrice)}
-                onOrderPlaced={refreshOrdersRef.current || undefined}
-              />
-            </div>
+          <div className="min-h-[620px] min-w-0 lg:min-h-0">
+            <BuySell
+              symbol={symbol}
+              askPrice={toDisplayPrice(prices.askPrice)}
+              bidPrice={toDisplayPrice(prices.bidPrice)}
+              onOrderPlaced={refreshOrdersRef.current || undefined}
+            />
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
