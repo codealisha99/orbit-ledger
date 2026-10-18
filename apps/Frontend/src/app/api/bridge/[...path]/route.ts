@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ApiUpstream, ServiceUnavailable } from "@/lib/server/upstream";
 export const dynamic = "force-dynamic";
-const api =
+const api = new ApiUpstream(
   process.env.API_URL ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:5000/api/v2";
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://localhost:5000/api/v2",
+);
 async function proxy(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> },
@@ -22,14 +24,14 @@ async function proxy(
     response.cookies.delete("orbit-session");
     return response;
   }
-  const target = new URL(`${api}/${path.map(encodeURIComponent).join("/")}`);
-  target.search = request.nextUrl.search;
+  const target = api.target(path, request.nextUrl.search);
   const headers = new Headers({ "Content-Type": "application/json" });
   const token = request.cookies.get("orbit-session")?.value;
   if (token) headers.set("Authorization", `Bearer ${token}`);
   const key = request.headers.get("Idempotency-Key");
   if (key) headers.set("Idempotency-Key", key);
   try {
+    await api.assertCompatible();
     const upstream = await fetch(target, {
       method: request.method,
       headers,
@@ -40,6 +42,13 @@ async function proxy(
       signal: AbortSignal.timeout(20000),
     });
     const payload = await upstream.json();
+    if (
+      upstream.status === 404 &&
+      payload.error === "Route Not Found !! Undefined Route"
+    )
+      throw new ServiceUnavailable(
+        "The trading service is being updated. Please try again shortly.",
+      );
     const authToken = payload.token;
     delete payload.token;
     const response = NextResponse.json(payload, { status: upstream.status });
@@ -61,14 +70,19 @@ async function proxy(
     const retry = upstream.headers.get("Retry-After");
     if (retry) response.headers.set("Retry-After", retry);
     return response;
-  } catch {
+  } catch (error) {
     return NextResponse.json(
       {
         error:
-          "The service could not be reached. Check your connection and try again.",
+          error instanceof ServiceUnavailable
+            ? error.message
+            : "The service could not be reached. Check your connection and try again.",
         code: "SERVICE_UNAVAILABLE",
       },
-      { status: 503 },
+      {
+        status: 503,
+        headers: { "Retry-After": "15", "Cache-Control": "private, no-store" },
+      },
     );
   }
 }

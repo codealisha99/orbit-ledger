@@ -97,7 +97,10 @@ if (healthPort)
           lastFlushAt,
           downstreamError: !!lastError,
           sourceHalted,
-          revision: process.env.RAILWAY_GIT_COMMIT_SHA ?? "local",
+          revision:
+            process.env.RAILWAY_GIT_COMMIT_SHA ??
+            process.env.APP_REVISION ??
+            "local",
         },
         { status: url.pathname === "/ready" && !ready ? 503 : 200 },
       );

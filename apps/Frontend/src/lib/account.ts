@@ -77,6 +77,7 @@ let active = false;
 let generation = 0;
 let cursor = 0;
 let pollEpoch = 0;
+let failures = 0;
 function emit(next: State) {
   state = next;
   listeners.forEach((fn) => fn());
@@ -100,6 +101,7 @@ export async function refreshAccount() {
     }
     if (generation !== requestGeneration) return;
     cursor = after;
+    failures = 0;
     emit({
       summary,
       loading: false,
@@ -109,6 +111,7 @@ export async function refreshAccount() {
     });
   } catch (error) {
     if (generation !== requestGeneration) return;
+    failures++;
     emit({
       ...state,
       loading: false,
@@ -125,7 +128,10 @@ async function poll(epoch: number) {
   if (epoch !== pollEpoch) return;
   if (document.visibilityState === "visible") await refreshAccount();
   if (listeners.size && epoch === pollEpoch)
-    timer = setTimeout(() => void poll(epoch), 1000);
+    timer = setTimeout(
+      () => void poll(epoch),
+      Math.min(30000, 1000 * 2 ** Math.min(failures, 5)),
+    );
 }
 const resume = () => {
   if (document.visibilityState === "visible") void refreshAccount();
@@ -159,6 +165,7 @@ export function useAccount() {
 export function clearAccount() {
   generation++;
   cursor = 0;
+  failures = 0;
   emit(initial);
   restored = false;
   emitMutation(emptyMutation);

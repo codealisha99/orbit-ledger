@@ -10,7 +10,7 @@
     "check-types": "turbo run check-types",
     "prisma": "bun --bun packages/database/node_modules/prisma/build/index.js --config packages/database/prisma.config.ts",
     "seed-data": "bun run scripts/seed-historical-data.ts",
-    "test": "bun test packages/shared/tests apps/Price_Poller/tests",
+    "test": "bun test packages/shared/tests apps/Price_Poller/tests apps/Frontend/tests",
     "test:integration": "bun test apps/Backend/tests"
   },
   "devDependencies": {
