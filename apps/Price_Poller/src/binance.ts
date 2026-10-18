@@ -29,7 +29,7 @@ function scheduleReconnect() {
 export function startBinance() {
   if (isShuttingDown) return;
   try {
-    const endpoint = process.env.BINANCE_WS_URL || "wss://stream.binance.com:443/ws";
+    const endpoint = process.env.BINANCE_WS_URL || "wss://data-stream.binance.vision:443/ws";
     wss = new WebSocket(endpoint);
     wss.on("open", () => {
       reconnectAttempt = 0;
@@ -62,10 +62,6 @@ export function startBinance() {
       if (isShuttingDown) return;
       console.log("Binance WebSocket connection closed");
       scheduleReconnect();
-    });
-    wss.on("unexpected-response", (_request, response) => {
-      console.error(`[BINANCE] WebSocket handshake rejected with HTTP ${response.statusCode}`);
-      response.resume();
     });
     wss.on("error", (err) => {
       console.error("[BINANCE] WebSocket error:", err.message);
