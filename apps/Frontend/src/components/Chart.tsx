@@ -12,6 +12,7 @@ import {
   type ISeriesApi,
   type SeriesOptionsCommon,
   type Time,
+  type TickMarkType,
   type WhitespaceData,
 } from "lightweight-charts";
 import { useEffect, useRef, useState } from "react";
@@ -25,6 +26,7 @@ import {
   type RealtimeUpdate,
 } from "../utils/chart_agg_ws_api";
 import type { Trade } from "./AskBidsTable";
+import { toDisplayPrice } from "../utils/utils";
 
 export default function ChartComponent({
   duration,
@@ -37,6 +39,7 @@ export default function ChartComponent({
 }) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
+  const fitChartToDataRef = useRef<() => void>(() => {});
   const [tooltip, setTooltip] = useState<string | null>(null);
   const [tooltipVisible, setTooltipVisible] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
@@ -46,6 +49,11 @@ export default function ChartComponent({
   const tooltipTimeoutRef = useRef<number | null>(null);
   const userScrolledRef = useRef<boolean>(false);
   const lastCandleTimeRef = useRef<number>(0);
+  const followModeRef = useRef(true);
+  const latestLogicalIndexRef = useRef(0);
+  const isHoveringChartRef = useRef(false);
+  const [hoveredCandle, setHoveredCandle] = useState<CandlestickData<Time> | null>(null);
+  followModeRef.current = followMode;
 
   useEffect(() => {
     const root = document.documentElement;
@@ -55,9 +63,6 @@ export default function ChartComponent({
     updateTheme();
     return () => observer.disconnect();
   }, []);
-
-  useEffect(() => {
-  }, [symbol]);
 
   useEffect(() => {
     if (tooltip) {
@@ -109,22 +114,49 @@ export default function ChartComponent({
             },
             textColor: foreground,
           },
+          grid: {
+            vertLines: { color: theme === "dark" ? "rgba(148,163,184,0.09)" : "rgba(71,85,105,0.12)" },
+            horzLines: { color: theme === "dark" ? "rgba(148,163,184,0.09)" : "rgba(71,85,105,0.12)" },
+          },
           width: chartContainerRef.current!.clientWidth,
           height: chartContainerRef.current!.clientHeight,
+          rightPriceScale: { borderColor: styles.getPropertyValue("--nt-border").trim(), scaleMargins: { top: 0.08, bottom: 0.08 } },
           timeScale: {
-            timeVisible: true,
+            timeVisible: duration !== Duration.candles_1d && duration !== Duration.candles_1w,
             secondsVisible: false,
-            barSpacing: 12,
-            minBarSpacing: 8,
-            rightOffset: 12,
+            barSpacing: 8,
+            minBarSpacing: 4,
+            rightOffset: 6,
+            borderColor: styles.getPropertyValue("--nt-border").trim(),
+            lockVisibleTimeRangeOnResize: true,
+            tickMarkFormatter: (timestamp: Time, _tickMarkType: TickMarkType, locale: string) => {
+              const date = typeof timestamp === "number"
+                ? new Date(timestamp * 1000)
+                : typeof timestamp === "string"
+                  ? new Date(timestamp)
+                  : new Date(Date.UTC(timestamp.year, timestamp.month - 1, timestamp.day));
+              if (duration === Duration.candles_1w || duration === Duration.candles_1d) {
+                return date.toLocaleDateString(locale, { month: "short", day: "numeric", year: "2-digit", timeZone: "UTC" });
+              }
+              return date.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
+            },
           },
           localization: {
-            timeFormatter: (timestamp: any) => {
-              const date = new Date(timestamp * 1000);
-              const hours = date.getHours().toString().padStart(2, "0");
-              const minutes = date.getMinutes().toString().padStart(2, "0");
-              return `${hours}:${minutes}`;
+            timeFormatter: (timestamp: Time) => {
+              const date = typeof timestamp === "number"
+                ? new Date(timestamp * 1000)
+                : typeof timestamp === "string"
+                  ? new Date(timestamp)
+                  : new Date(Date.UTC(timestamp.year, timestamp.month - 1, timestamp.day));
+              if (duration === Duration.candles_1w || duration === Duration.candles_1d) {
+                return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "2-digit", timeZone: "UTC" });
+              }
+              return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
             },
+          },
+          crosshair: {
+            vertLine: { color: `${accent}80`, labelBackgroundColor: accent },
+            horzLine: { color: `${accent}80`, labelBackgroundColor: accent },
           },
         });
 
@@ -134,6 +166,11 @@ export default function ChartComponent({
           borderVisible: false,
           wickUpColor: accent,
           wickDownColor: "#EB483F",
+          lastValueVisible: true,
+          priceLineVisible: true,
+          priceLineColor: accent,
+          priceLineStyle: 2,
+          priceLineWidth: 1,
         });
 
         const tickWrapper = (trade: Trade) => {
@@ -165,16 +202,15 @@ export default function ChartComponent({
           const candle = processRealupdate(tick, duration);
 
           if (candle && candlestickSeries) {
+            const isNewCandle = Number(candle.time) > lastCandleTimeRef.current;
+            if (isNewCandle) {
+              lastCandleTimeRef.current = Number(candle.time);
+              latestLogicalIndexRef.current += 1;
+            }
             candlestickSeries.update(candle);
-            if (followMode && !userScrolledRef.current && chart) {
-              if (candle.time !== lastCandleTimeRef.current) {
-                lastCandleTimeRef.current = candle.time as number;
-                setTimeout(() => {
-                  if (chart) {
-                    chart.timeScale().scrollToRealTime();
-                  }
-                }, 50);
-              }
+            if (!isHoveringChartRef.current) setHoveredCandle(candle);
+            if (isNewCandle && followModeRef.current && !userScrolledRef.current && chart) {
+              chart.timeScale().scrollToRealTime();
             }
           } else {
             console.warn(`[CHART] Failed to update candle - candle:`, candle, "series:", !!candlestickSeries);
@@ -187,38 +223,48 @@ export default function ChartComponent({
         if (candlestickSeries) {
           candlestickSeries.setData([]);
           candlestickSeries.setData(rawData);
+          const latest = rawData[rawData.length - 1] as CandlestickData<Time> | undefined;
+          setHoveredCandle(latest ?? null);
+          latestLogicalIndexRef.current = Math.max(0, rawData.length - 1);
+          lastCandleTimeRef.current = latest ? Number(latest.time) : 0;
         }
         if (chart) {
           const dataLength = rawData.length;
-          if (dataLength > 0) {
-            let visibleCandles: number;
-            switch (duration) {
-              case Duration.candles_1m:
-                visibleCandles = 60;
-                break;
-              case Duration.candles_1d:
-                visibleCandles = 30;
-                break;
-              case Duration.candles_1w:
-                visibleCandles = 20;
-                break;
-              default:
-                visibleCandles = 60;
+          const visibleCandles = duration === Duration.candles_1w ? 40 : duration === Duration.candles_1d ? 45 : 75;
+          fitChartToDataRef.current = () => {
+            if (!chart || !candlestickSeries) return;
+            const seriesLength = candlestickSeries.data().length;
+            if (seriesLength < 20) {
+              const rangeEnd = seriesLength + 6;
+              chart.timeScale().setVisibleLogicalRange({ from: rangeEnd - visibleCandles, to: rangeEnd });
+            } else {
+              chart.timeScale().fitContent();
             }
-            const from = Math.max(0, dataLength - visibleCandles);
-            const to = dataLength - 1;
-            chart.timeScale().setVisibleLogicalRange({ from, to });
+          };
+          if (dataLength > 0) {
+            const to = dataLength + 6;
+            chart.timeScale().setVisibleLogicalRange({ from: to - visibleCandles, to });
+            chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+              if (!range) return;
+              const shouldPause = range.to < latestLogicalIndexRef.current - 0.5;
+              userScrolledRef.current = shouldPause;
+              if (followModeRef.current === shouldPause) {
+                followModeRef.current = !shouldPause;
+                setFollowMode(!shouldPause);
+              }
+            });
           } else {
             chart.timeScale().fitContent();
           }
 
-          chart.timeScale().subscribeVisibleLogicalRangeChange(() => {
-            if (!followMode) return;
-            userScrolledRef.current = true;
-            setTimeout(() => {
-              userScrolledRef.current = false;
-            }, 3000);
-          });
+          if (candlestickSeries) {
+            chart.subscribeCrosshairMove((param) => {
+              isHoveringChartRef.current = param.time !== undefined;
+              const data = param.seriesData.get(candlestickSeries!);
+              if (data && "open" in data) setHoveredCandle(data as CandlestickData<Time>);
+              else setHoveredCandle((candlestickSeries!.data().at(-1) as CandlestickData<Time> | undefined) ?? null);
+            });
+          }
         }
 
         const signalingManager = Signalingmanager.getInstance();
@@ -241,13 +287,12 @@ export default function ChartComponent({
           width: parent.clientWidth,
           height: parent.clientHeight,
         });
-        chart.timeScale().fitContent();
       }
     };
 
     initChart();
-    setTimeout(handleResize, 100);
-    window.addEventListener("resize", handleResize);
+    const resizeObserver = new ResizeObserver(handleResize);
+    resizeObserver.observe(chartContainerRef.current);
 
     return () => {
       isCleanedUp = true;
@@ -257,13 +302,14 @@ export default function ChartComponent({
         unwatch = null;
       }
 
-      window.removeEventListener("resize", handleResize);
+      resizeObserver.disconnect();
       resetLastCandle(symbol, duration);
 
       if (chart) {
         chart.remove();
         chart = null;
       }
+      fitChartToDataRef.current = () => {};
 
       if (tooltipTimeoutRef.current) {
         clearTimeout(tooltipTimeoutRef.current);
@@ -284,10 +330,19 @@ export default function ChartComponent({
           <div>
             <h2 className="text-lg font-semibold text-[var(--nt-text)]">{symbol}</h2>
             <div className="text-sm text-[var(--nt-muted)]">
-              {duration === Duration.candles_1m && "1 Minute Chart"}
-              {duration === Duration.candles_1d && "Daily Chart"}
-              {duration === Duration.candles_1w && "Weekly Chart"}
+              {duration === Duration.candles_1m && "1 minute"}
+              {duration === Duration.candles_5m && "5 minutes"}
+              {duration === Duration.candles_15m && "15 minutes"}
+              {duration === Duration.candles_1h && "1 hour"}
+              {duration === Duration.candles_4h && "4 hours"}
+              {duration === Duration.candles_1d && "1 day"}
+              {duration === Duration.candles_1w && "1 week"}
             </div>
+          </div>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-x-4 gap-y-1 px-2 font-mono text-[11px] sm:text-xs" aria-label="Selected candle values">
+            {([['O', hoveredCandle?.open], ['H', hoveredCandle?.high], ['L', hoveredCandle?.low], ['C', hoveredCandle?.close]] as const).map(([label, value]) => (
+              <span key={label} className="whitespace-nowrap text-[var(--nt-muted)]">{label} <strong className="font-medium text-[var(--nt-text)]">{value == null ? "—" : `$${toDisplayPrice(value)}`}</strong></span>
+            ))}
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -326,7 +381,9 @@ export default function ChartComponent({
           <div className="flex items-center gap-3">
             <div className="flex items-center border border-[var(--nt-border)] rounded-lg bg-[var(--nt-surface2)]">
               <button
-                className="p-2 rounded-l-lg hover:bg-[color:color-mix(in_srgb,var(--nt-surface2)_10%,transparent)] transition-colors text-[var(--nt-muted)] hover:text-[var(--nt-text)]"
+                aria-label="Zoom in"
+                title="Zoom in"
+                className="min-h-10 min-w-10 flex items-center justify-center rounded-l-lg hover:bg-[var(--nt-surface)] transition-colors text-[var(--nt-muted)] hover:text-[var(--nt-text)]"
                 onClick={() => {
                   if (chartRef.current) {
                     const logicalRange = chartRef.current.timeScale().getVisibleLogicalRange();
@@ -349,7 +406,9 @@ export default function ChartComponent({
               </button>
               <div className="w-[1px] h-8 bg-[var(--nt-border)]"></div>
               <button
-                className="p-2 hover:bg-[color:color-mix(in_srgb,var(--nt-surface2)_10%,transparent)] transition-colors text-[var(--nt-muted)] hover:text-[var(--nt-text)]"
+                aria-label="Zoom out"
+                title="Zoom out"
+                className="min-h-10 min-w-10 flex items-center justify-center hover:bg-[var(--nt-surface)] transition-colors text-[var(--nt-muted)] hover:text-[var(--nt-text)]"
                 onClick={() => {
                   if (chartRef.current) {
                     const logicalRange = chartRef.current.timeScale().getVisibleLogicalRange();
@@ -372,10 +431,12 @@ export default function ChartComponent({
               </button>
               <div className="w-[1px] h-8 bg-[var(--nt-border)]"></div>
               <button
-                className="p-2 rounded-r-lg hover:bg-[color:color-mix(in_srgb,var(--nt-surface2)_10%,transparent)] transition-colors text-[var(--nt-muted)] hover:text-[var(--nt-text)]"
+                aria-label="Fit chart to data"
+                title="Fit chart to data"
+                className="min-h-10 min-w-10 flex items-center justify-center rounded-r-lg hover:bg-[var(--nt-surface)] transition-colors text-[var(--nt-muted)] hover:text-[var(--nt-text)]"
                 onClick={() => {
                   if (chartRef.current) {
-                    chartRef.current.timeScale().fitContent();
+                    fitChartToDataRef.current();
                     setTooltip("Reset zoom");
                   }
                 }}
