@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { money, signedMoney } from "@orbitledger/shared";
 import {
   useAccount,
@@ -15,6 +16,9 @@ import PositionDialog, { type PositionAction } from "./orders/PositionDialog";
 import { price, date } from "./orders/format";
 import { api } from "@/lib/client";
 export default function OrdersPanel({ symbol }: { symbol: Symbol }) {
+  const params = useSearchParams();
+  const requestedTab = params.get("tab");
+  const requestedReceipt = params.get("receipt");
   const account = useAccount();
   const [tab, setTab] = useState("positions");
   const [selectedOnly, setSelectedOnly] = useState(false);
@@ -41,6 +45,23 @@ export default function OrdersPanel({ symbol }: { symbol: Symbol }) {
     } catch (e) {
       setReceiptError((e as Error).message);
     }
+  }
+  useEffect(() => {
+    if (
+      requestedTab &&
+      ["positions", "history", "market", "activity"].includes(requestedTab)
+    )
+      setTab(requestedTab);
+  }, [requestedTab]);
+  useEffect(() => {
+    if (requestedReceipt) void showReceipt(requestedReceipt);
+  }, [requestedReceipt]);
+  function selectTab(next: string) {
+    setTab(next);
+    const url = new URL(location.href);
+    url.searchParams.set("tab", next);
+    url.searchParams.delete("receipt");
+    history.replaceState(null, "", url);
   }
   useEffect(() => {
     const open = (event: Event) => {
@@ -85,11 +106,11 @@ export default function OrdersPanel({ symbol }: { symbol: Symbol }) {
                         : null;
               if (next) {
                 e.preventDefault();
-                setTab(next);
+                selectTab(next);
                 document.getElementById(`tab-${next}`)?.focus();
               }
             }}
-            onClick={() => setTab(key!)}
+            onClick={() => selectTab(key!)}
           >
             {label}
           </button>

@@ -8,7 +8,7 @@ import OAuthButtons from "./OAuthButtons";
 import ThemeToggle from "./ThemeToggle";
 export default function AuthForm({ signup = false }: { signup?: boolean }) {
   const router = useRouter();
-  const [next, setNext] = useState("/trading");
+  const [next, setNext] = useState("/dashboard");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -36,6 +36,7 @@ export default function AuthForm({ signup = false }: { signup?: boolean }) {
       });
       clearAccount();
       router.replace(signInDestination());
+      router.refresh();
     } catch (e) {
       setError((e as Error).message);
     } finally {

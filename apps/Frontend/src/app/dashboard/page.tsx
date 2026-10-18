@@ -2,7 +2,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import AppHeader from "@/components/AppHeader";
-import EquityHistory from "@/components/EquityHistory";
+import DashboardHub from "@/components/dashboard/DashboardHub";
+import { ArrowUpRight } from "lucide-react";
+import "./dashboard.css";
 import { useAccount, type Execution } from "@/lib/account";
 import { api } from "@/lib/client";
 import { money, signedMoney } from "@orbitledger/shared";
@@ -48,14 +50,15 @@ export default function Dashboard() {
   return (
     <div className="workspace">
       <AppHeader />
-      <main className="dashboard-main">
+      <main className="dashboard-main dashboard-home">
         <div className="page-heading">
           <div>
-            <h1>Your paper account</h1>
-            <p>Value, exposure, and the results of your decisions.</p>
+            <p className="dashboard-eyebrow">Your personal trading desk</p>
+            <h1>A little more perspective.</h1>
+            <p>Follow your markets. Know your exposure. Make your next move.</p>
           </div>
           <Link className="primary" href="/trading">
-            Open trading workspace
+            Open trading workspace <ArrowUpRight size={17} />
           </Link>
         </div>
         {!summary ? (
@@ -117,7 +120,11 @@ export default function Dashboard() {
                   ? "Some market quotes are stale. Equity and open P&L remain unavailable until every open position has a fresh quote."
                   : `Valued using simulated close quotes · ${new Date(summary.valuedAt).toLocaleTimeString("en-GB", { timeZone: "UTC" })} UTC`}
             </p>
-            <EquityHistory />
+            <DashboardHub
+              key={summary.userId}
+              hasPosition={summary.orders.length > 0}
+              hasExit={(performance?.completedPositions ?? 0) > 0}
+            />
             <div className="dashboard-columns">
               <section className="surface exposure-panel">
                 <div className="section-heading">
@@ -292,7 +299,11 @@ export default function Dashboard() {
                       {summary.orders.map((p) => (
                         <tr key={p.orderId}>
                           <td>
-                            <b>{p.asset}</b>
+                            <Link
+                              href={`/trading?market=${p.asset}#account-activity`}
+                            >
+                              <b>{p.asset}</b> <ArrowUpRight size={12} />
+                            </Link>
                             <span>
                               {p.type === "buy" ? "Long" : "Short"} ·{" "}
                               {p.needsReview
@@ -338,7 +349,9 @@ export default function Dashboard() {
             <section className="surface">
               <div className="section-heading">
                 <h2>Recent completed trades</h2>
-                <Link href="/trading#account-activity">Full trade history</Link>
+                <Link href="/trading?tab=history#account-activity">
+                  Full trade history
+                </Link>
               </div>
               {historyError ? (
                 <p className="notice error">
@@ -388,7 +401,13 @@ export default function Dashboard() {
                               ? signedMoney(o.netPnlCents)
                               : "Unknown fees"}
                           </td>
-                          <td>{o.orderId.slice(0, 8)}</td>
+                          <td>
+                            <Link
+                              href={`/trading?market=${o.asset}&tab=history&receipt=${encodeURIComponent(o.positionId || o.orderId)}#account-activity`}
+                            >
+                              View receipt <ArrowUpRight size={13} />
+                            </Link>
+                          </td>
                         </tr>
                       ))}
                     </tbody>

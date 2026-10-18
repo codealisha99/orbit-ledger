@@ -1,3 +1,4 @@
+import { resolveDestination } from "./navigation";
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -45,9 +46,5 @@ export function mutation<T>(path: string, body: unknown, key: string) {
 }
 export function signInDestination() {
   const next = new URLSearchParams(location.search).get("next");
-  return next?.startsWith("/") &&
-    !next.startsWith("//") &&
-    !next.startsWith("/\\")
-    ? next
-    : "/trading";
+  return resolveDestination(next);
 }

@@ -1420,3 +1420,10 @@ input,
 select {
   border-color: var(--nt-control-border);
 }
+
+/* Keep signed-in navigation reachable at every viewport. */
+@media (max-width: 800px) {
+  .app-header nav { order: 3; width: 100%; gap: 23px; }
+  .app-header nav a { font-size: 12px; padding: 7px 0; }
+  .header-account { margin-left: auto; }
+}

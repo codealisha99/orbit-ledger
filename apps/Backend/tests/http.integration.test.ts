@@ -16,6 +16,7 @@ process.env.REDIS_URL = "";
 process.env.RATE_LIMIT_REDIS_URL = "";
 process.env.JWT_SECRET = "integration-local-only";
 const { tradeRoutes } = await import("../src/routes/trades");
+const { workspaceRouter } = await import("../src/routes/workspace");
 const { userRouter } = await import("../src/routes/user");
 const { oauthRouter } = await import("../src/routes/oauth");
 const { DomainError } = await import("../src/services/accountService");
@@ -23,6 +24,7 @@ const { ZodError } = await import("zod");
 const app = express();
 app.use(express.json());
 app.use("/user", userRouter);
+app.use("/user", workspaceRouter);
 app.use("/trade", tradeRoutes);
 app.use("/auth", oauthRouter);
 app.use(
@@ -331,4 +333,160 @@ test("password allocation reconciles and legacy mixed-case email still signs in"
     await prisma.user.delete({ where: { userId: legacyId } });
     if (newId) await prisma.user.delete({ where: { userId: newId } });
   }
+});
+
+test("watchlist persists per account without changing financial state", async () => {
+  expect((await fetch(`${base}/user/workspace`)).status).toBe(401);
+  const before = await prisma.user.findUniqueOrThrow({ where: { userId } });
+  for (let i = 0; i < 2; i++) {
+    const saved = await fetch(`${base}/user/workspace/watchlist`, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ asset: "SOL", watching: true }),
+    });
+    expect(saved.status).toBe(200);
+  }
+  const result = await (
+    await fetch(`${base}/user/workspace`, { headers: headers() })
+  ).json();
+  expect(result.watchlist).toEqual(["SOL"]);
+  expect(result.profile.email).toBe(`${userId}@example.test`);
+  expect(result.profile.password).toBeUndefined();
+  const after = await prisma.user.findUniqueOrThrow({ where: { userId } });
+  expect(after.balanceCents).toBe(before.balanceCents);
+  expect(after.version).toBe(before.version);
+  const removed = await fetch(`${base}/user/workspace/watchlist`, {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify({ asset: "SOL", watching: false }),
+  });
+  expect(removed.status).toBe(200);
+  expect(await prisma.watchMarket.count({ where: { userId } })).toBe(0);
+});
+
+test("alerts retry once, require fresh prices, and remain private", async () => {
+  const id = randomUUID();
+  const body = { id, asset: "BTC", direction: "above", targetPrice: 55000 };
+  for (let i = 0; i < 2; i++)
+    expect(
+      (
+        await fetch(`${base}/user/workspace/alerts`, {
+          method: "POST",
+          headers: headers(),
+          body: JSON.stringify(body),
+        })
+      ).status,
+    ).toBe(201);
+  expect(await prisma.priceAlert.count({ where: { id, userId } })).toBe(1);
+  const check = () =>
+    fetch(`${base}/user/workspace/check-alerts`, {
+      method: "POST",
+      headers: headers(),
+      body: "{}",
+    }).then((r) => r.json());
+  PriceStorageMp.set("BTC", {
+    bid: 600000000,
+    ask: 600000000,
+    time: Date.now() - 60000,
+  });
+  expect((await check()).triggered).toEqual([]);
+  PriceStorageMp.set("BTC", {
+    bid: 600000000,
+    ask: 600000000,
+    time: Date.now(),
+  });
+  expect((await check()).triggered).toEqual([id]);
+  expect((await check()).triggered).toEqual([]);
+  const otherId = `workspace-other-${randomUUID()}`;
+  await prisma.user.create({
+    data: {
+      userId: otherId,
+      email: `${otherId}@example.test`,
+      password: "",
+      balanceCents: 500000,
+    },
+  });
+  try {
+    const otherHeaders = {
+      ...headers(),
+      Authorization: `Bearer ${generateToken(otherId)}`,
+    };
+    const other = await (
+      await fetch(`${base}/user/workspace`, { headers: otherHeaders })
+    ).json();
+    expect(other.alerts).toEqual([]);
+    expect(
+      (
+        await fetch(`${base}/user/workspace/alerts/${id}`, {
+          method: "POST",
+          headers: otherHeaders,
+          body: JSON.stringify({ action: "remove" }),
+        })
+      ).status,
+    ).toBe(404);
+    expect(
+      (
+        await fetch(`${base}/user/workspace/alerts`, {
+          method: "POST",
+          headers: otherHeaders,
+          body: JSON.stringify(body),
+        })
+      ).status,
+    ).toBe(409);
+    expect(await prisma.priceAlert.count({ where: { id, userId } })).toBe(1);
+  } finally {
+    await prisma.user.delete({ where: { userId: otherId } });
+  }
+  expect(
+    (
+      await fetch(`${base}/user/workspace/alerts/${id}`, {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({ action: "rearm" }),
+      })
+    ).status,
+  ).toBe(200);
+  expect((await check()).triggered).toEqual([id]);
+  expect(
+    (
+      await fetch(`${base}/user/workspace/alerts/${id}`, {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({ action: "remove" }),
+      })
+    ).status,
+  ).toBe(200);
+  expect(await prisma.priceAlert.count({ where: { id } })).toBe(0);
+});
+
+test("workspace validates markets, levels, and bounded alert capacity", async () => {
+  expect(
+    (
+      await fetch(`${base}/user/workspace/watchlist`, {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({ asset: "FAKE", watching: true }),
+      })
+    ).status,
+  ).toBe(400);
+  const create = (targetPrice: number) =>
+    fetch(`${base}/user/workspace/alerts`, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({
+        id: randomUUID(),
+        asset: "SOL",
+        direction: "below",
+        targetPrice,
+      }),
+    });
+  expect((await create(0)).status).toBe(400);
+  expect((await create(1.00001)).status).toBe(400);
+  const requests = await Promise.all(
+    Array.from({ length: 13 }, () => create(100)),
+  );
+  expect(requests.filter((r) => r.status === 201).length).toBe(12);
+  expect(requests.filter((r) => r.status === 400).length).toBe(1);
+  expect(await prisma.priceAlert.count({ where: { userId } })).toBe(12);
+  await prisma.priceAlert.deleteMany({ where: { userId } });
 });
