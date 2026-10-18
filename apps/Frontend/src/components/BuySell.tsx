@@ -23,7 +23,6 @@ export default function BuySell({
   symbol: SYMBOL;
   onOrderPlaced?: () => void;
 }) {
-  const [orderType, setOrderType] = useState<"market" | "pending">("market");
   const [margin, setMargin] = useState<number | string>(100);
   const [leverage, setLeverage] = useState<number>(1);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -324,162 +323,48 @@ export default function BuySell({
         </button>
       </div>
 
-      <div className="p-4 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         <header className="mb-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium text-[var(--nt-text)]">
-              {activeTab === "buy" ? "Buy Order" : "Sell Order"}
-            </h2>
-            <span className="rounded-md border border-[var(--nt-border)] bg-[color:color-mix(in_srgb,var(--nt-surface2)_60%,transparent)] backdrop-blur-sm px-3 py-1 text-xs text-[var(--nt-text)]">
-              {orderType === "market" ? "Market" : "Limit"}
-            </span>
-          </div>
-
-          <div className="mt-3 flex items-center gap-3">
+          <div className="flex items-center justify-between gap-3">
             {currentAsset ? (
-              <div className="flex items-center gap-3 p-3 bg-[color:color-mix(in_srgb,var(--nt-surface2)_60%,transparent)] backdrop-blur-sm rounded-md border border-[var(--nt-border)]">
+              <div className="flex min-w-0 items-center gap-2">
                 <img
                   src={currentAsset.imageUrl}
                   alt={currentAsset.name}
-                  className="h-6 w-6 rounded-full"
+                  className="h-8 w-8 rounded-full"
                 />
-                <div>
-                  <div className="text-sm font-semibold text-[var(--nt-text)]">
-                    {currentAsset.name}
-                  </div>
-                  <div className="text-xs text-[var(--nt-muted)]">{symbol}/USDT</div>
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold text-[var(--nt-text)]">{symbol}/USDT</div>
+                  <div className="text-xs text-[var(--nt-muted)]">Market order</div>
                 </div>
               </div>
             ) : (
               <div className="text-sm font-semibold text-[var(--nt-text)]">
-                {symbol}
+                {symbol}/USDT
               </div>
             )}
-            <div className="text-xs ml-auto bg-[color:color-mix(in_srgb,var(--nt-surface2)_60%,transparent)] backdrop-blur-sm px-3 py-2 rounded-md border border-[var(--nt-border)]">
-              <span className="text-[var(--nt-text)]">Balance:</span>
-              <span className="text-green-400 font-medium ml-2">
-                ${userBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
-              </span>
+            <div className="shrink-0 text-right">
+              <div className="text-[10px] uppercase tracking-wide text-[var(--nt-muted)]">Available</div>
+              <div className="font-mono text-sm font-medium text-[var(--nt-text)]">
+                ${userBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
             </div>
           </div>
         </header>
 
-        <section className="grid grid-cols-2 gap-3 mt-4" aria-label="Prices">
-          <div className="rounded-lg border border-[var(--nt-border)] bg-[color:color-mix(in_srgb,var(--nt-surface2)_60%,transparent)] backdrop-blur-sm p-3 relative overflow-hidden">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-[var(--nt-muted)]">Sell Price</div>
-              <div className="text-xs bg-[#EB483F]/20 text-[#EB483F] px-2 py-1 rounded">
-                SELL
-              </div>
-            </div>
-            <div className="mt-2 text-lg font-semibold text-[#EB483F] flex items-center">
-              <span className="text-sm mr-1">$</span>
-              {bidPrice}
-            </div>
-            <div className="absolute w-1 h-full bg-[#EB483F]/40 left-0 top-0"></div>
+        <section className="grid grid-cols-2 divide-x divide-[var(--nt-border)] border-y border-[var(--nt-border)] py-2.5" aria-label="Market prices">
+          <div className="pr-3">
+            <div className="text-[10px] uppercase tracking-wide text-[var(--nt-muted)]">Sell price</div>
+            <div className="mt-1 truncate font-mono text-sm font-semibold text-red-400">${bidPrice}</div>
           </div>
-          <div className="rounded-lg border border-[var(--nt-border)] bg-[color:color-mix(in_srgb,var(--nt-surface2)_60%,transparent)] backdrop-blur-sm p-3 relative overflow-hidden">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-[var(--nt-muted)]">Buy Price</div>
-              <div className="text-xs bg-[color:color-mix(in_srgb,var(--nt-accent)_20%,transparent)] text-[var(--nt-accent)] px-2 py-1 rounded">
-                BUY
-              </div>
-            </div>
-            <div className="mt-2 text-lg font-semibold text-[var(--nt-accent)] flex items-center">
-              <span className="text-sm mr-1">$</span>
-              {askPrice}
-            </div>
-            <div className="absolute w-1 h-full bg-[color:color-mix(in_srgb,var(--nt-accent)_40%,transparent)] left-0 top-0"></div>
+          <div className="pl-3 text-right">
+            <div className="text-[10px] uppercase tracking-wide text-[var(--nt-muted)]">Buy price</div>
+            <div className="mt-1 truncate font-mono text-sm font-semibold text-[var(--nt-accent)]">${askPrice}</div>
           </div>
         </section>
 
-        <section className="mt-4" aria-label="Risk indicator">
-          <div className="bg-[color:color-mix(in_srgb,var(--nt-surface2)_60%,transparent)] backdrop-blur-sm border border-[var(--nt-border)] rounded-md p-3">
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="text-[var(--nt-muted)]"
-                >
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                </svg>
-                <span className="text-[var(--nt-muted)]">Risk Level</span>
-              </div>
-              <span className="font-medium text-green-400 bg-green-500/10 px-2 py-1 rounded text-xs">
-                LOW
-              </span>
-            </div>
-            <div className="mt-2 h-2 w-full rounded-full bg-[var(--nt-border)] overflow-hidden">
-              <div
-                className="h-2 rounded-full bg-gradient-to-r from-green-500 to-green-400"
-                style={{ width: "30%" }}
-                aria-hidden="true"
-              />
-            </div>
-          </div>
-        </section>
-
-        <div className="mt-3 bg-[var(--nt-surface)] border border-[var(--nt-border)] rounded-md p-2">
-          <div className="flex items-center gap-1 mb-1.5">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-[color:color-mix(in_srgb,var(--nt-text)_60%,transparent)]"
-            >
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-            <span className="text-xs text-[color:color-mix(in_srgb,var(--nt-text)_60%,transparent)]">Order Type</span>
-          </div>
-          <nav
-            className="inline-flex w-full rounded-md border border-[var(--nt-border)] bg-[var(--nt-surface2)] p-0.5"
-            role="tablist"
-            aria-label="Order type"
-          >
-            <button
-              role="tab"
-              aria-selected={orderType === "market"}
-              className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                orderType === "market"
-                  ? "bg-[var(--nt-surface2)] text-[var(--nt-text)] shadow-sm"
-                  : "text-[color:color-mix(in_srgb,var(--nt-text)_70%,transparent)] hover:text-[var(--nt-text)]"
-              }`}
-              onClick={() => setOrderType("market")}
-            >
-              Market
-            </button>
-            <button
-              role="tab"
-              aria-selected={orderType === "pending"}
-              className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                orderType === "pending"
-                  ? "bg-[var(--nt-surface2)] text-[var(--nt-text)] shadow-sm"
-                  : "text-[color:color-mix(in_srgb,var(--nt-text)_70%,transparent)] hover:text-[var(--nt-text)]"
-              }`}
-              onClick={() => setOrderType("pending")}
-            >
-              Limit
-            </button>
-          </nav>
-        </div>
-
-        <section className="mt-3 bg-[var(--nt-surface)] border border-[var(--nt-border)] rounded-md p-2">
-          <div className="flex items-center justify-between mb-1.5">
+        <section className="mt-4">
+          <div className="mb-2 flex items-center justify-between">
             <div className="flex items-center gap-1">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -549,17 +434,9 @@ export default function BuySell({
             </button>
           </div>
 
-          <div className="mt-2 h-1 w-full bg-[var(--nt-border)] rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-[color:color-mix(in_srgb,var(--nt-accent)_30%,transparent)] to-[color:color-mix(in_srgb,var(--nt-accent)_80%,transparent)]"
-              style={{
-                width: `${Math.min(100, (Number(margin) / userBalance) * 100)}%`,
-              }}
-            ></div>
-          </div>
         </section>
 
-        <section className="mt-3 bg-[var(--nt-surface)] border border-[var(--nt-border)] rounded-md p-2">
+        <section className="mt-4">
           <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-1">
               <svg
@@ -650,8 +527,13 @@ export default function BuySell({
           )}
         </section>
 
-        <div className="mt-3 space-y-2">
-          <div className="bg-[var(--nt-surface)] border border-[var(--nt-border)] rounded-md p-2">
+        <details className="mt-4 rounded-lg border border-[var(--nt-border)] bg-[var(--nt-surface)]">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-medium text-[var(--nt-text)] focus-visible:ring-2 focus-visible:ring-[var(--nt-accent)] [&::-webkit-details-marker]:hidden">
+            <span>Risk controls</span>
+            <span className="text-xs font-normal text-[var(--nt-muted)]">Take profit · Stop loss · Trailing</span>
+          </summary>
+          <div className="space-y-2 border-t border-[var(--nt-border)] p-3">
+          <div className="rounded-md border border-[var(--nt-border)] bg-[var(--nt-bg)] p-2">
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-1">
                 <svg
@@ -770,7 +652,7 @@ export default function BuySell({
             )}
           </div>
 
-          <div className="bg-[var(--nt-surface)] border border-[var(--nt-border)] rounded-md p-2">
+          <div className="rounded-md border border-[var(--nt-border)] bg-[var(--nt-bg)] p-2">
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-1">
                 <svg
@@ -888,7 +770,7 @@ export default function BuySell({
             )}
           </div>
 
-          <div className="bg-[var(--nt-surface)] border border-[var(--nt-border)] rounded-md p-2">
+          <div className="rounded-md border border-[var(--nt-border)] bg-[var(--nt-bg)] p-2">
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-1">
                 <svg
@@ -1004,7 +886,8 @@ export default function BuySell({
               </div>
             )}
           </div>
-        </div>
+          </div>
+        </details>
 
         {error && (
           <div className="mt-2 p-1 bg-red-500/10 border border-red-500/30 rounded text-red-400 text-[10px]">
@@ -1018,29 +901,18 @@ export default function BuySell({
           </div>
         )}
 
-        <div className="mt-3 rounded-md border border-[color:color-mix(in_srgb,var(--nt-border)_40%,transparent)] bg-[color:color-mix(in_srgb,var(--nt-surface2)_40%,transparent)] p-2">
-          <div className="space-y-1">
-            <div className="flex items-center justify-between text-[10px]">
-              <span className="text-[color:color-mix(in_srgb,var(--nt-text)_50%,transparent)]">Margin:</span>
-              <span className="text-[color:color-mix(in_srgb,var(--nt-text)_80%,transparent)]">${Number(margin).toFixed(2)}</span>
-            </div>
-            <div className="flex items-center justify-between text-[10px]">
-              <span className="text-[color:color-mix(in_srgb,var(--nt-text)_50%,transparent)]">Fee (0.5%):</span>
-              <span className="text-orange-400">${(Number(margin) * 0.005).toFixed(2)}</span>
-            </div>
-            <div className="h-px bg-[color:color-mix(in_srgb,var(--nt-border)_30%,transparent)] my-1"></div>
-            <div className="flex items-center justify-between text-[11px] font-semibold">
-              <span className="text-[color:color-mix(in_srgb,var(--nt-text)_70%,transparent)]">Total Cost:</span>
-              <span className="text-[var(--nt-text)]">${(Number(margin) + Number(margin) * 0.005).toFixed(2)}</span>
-            </div>
-          </div>
-        </div>
+      </div>
 
+      <footer className="shrink-0 border-t border-[var(--nt-border)] bg-[var(--nt-surface)] px-4 py-3">
+        <div className="mb-2 flex items-center justify-between text-xs">
+          <span className="text-[var(--nt-muted)]">Estimated total · includes 0.5% fee</span>
+          <span className="font-mono font-medium text-[var(--nt-text)]">${(Number(margin) + Number(margin) * 0.005).toFixed(2)}</span>
+        </div>
         <button
-          className={`mt-3 w-full rounded-md px-3 py-3 text-xs font-semibold transition-all flex items-center justify-center gap-2 relative overflow-hidden ${
+          className={`min-h-11 w-full rounded-lg px-3 py-3 text-sm font-semibold transition-colors flex items-center justify-center gap-2 relative overflow-hidden ${
             activeTab === "buy"
               ? "bg-gradient-to-r from-[color:color-mix(in_srgb,var(--nt-accent)_90%,transparent)] to-[var(--nt-accent)] hover:from-[var(--nt-accent)] hover:to-[color:color-mix(in_srgb,var(--nt-accent)_90%,transparent)] text-[var(--nt-text)]"
-              : "bg-gradient-to-r from-[#EB483F]/90 to-[#EB483F] hover:from-[#EB483F] hover:to-[#EB483F]/90 text-[var(--nt-text)]"
+              : "bg-red-600 hover:bg-red-500 text-white"
           } ${isSubmitting ? "opacity-80 cursor-not-allowed" : ""}`}
           aria-label={
             activeTab === "buy" ? "Place buy order" : "Place sell order"
@@ -1112,50 +984,7 @@ export default function BuySell({
           )}
         </button>
 
-        <div className="mt-2 p-1.5 rounded bg-[color:color-mix(in_srgb,var(--nt-surface)_80%,transparent)] border border-[var(--nt-border)]">
-          <div className="flex items-center gap-1.5 justify-center">
-            {orderType === "market" ? (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="text-[color:color-mix(in_srgb,var(--nt-text)_40%,transparent)]"
-              >
-                <circle cx="12" cy="12" r="10"></circle>
-                <polyline points="12 6 12 12 16 14"></polyline>
-              </svg>
-            ) : (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="text-[color:color-mix(in_srgb,var(--nt-text)_40%,transparent)]"
-              >
-                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                <line x1="8" y1="21" x2="16" y2="21"></line>
-                <line x1="12" y1="17" x2="12" y2="21"></line>
-              </svg>
-            )}
-            <p className="text-center text-[10px] text-[color:color-mix(in_srgb,var(--nt-text)_40%,transparent)]">
-              {orderType === "market"
-                ? "Instant execution at market price."
-                : "Order will trigger when price meets condition."}
-            </p>
-          </div>
-        </div>
-      </div>
+      </footer>
     </aside>
   );
 }
