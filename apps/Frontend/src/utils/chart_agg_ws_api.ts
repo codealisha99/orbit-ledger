@@ -41,8 +41,12 @@ export function processRealupdate(
   const price = (bidDisplay + askDisplay) / 2;
 
   const bucketSize = getbucketsize(duration);
-  const currentbucket = (Math.floor(trade.time / bucketSize) *
-    bucketSize) as UTCTimestamp;
+  // Weekly candles in the database are calendar weeks starting Monday UTC
+  // (the same convention used by Binance and TradingView). Unix-week buckets
+  // start on Thursday, which can make a live update older than the last bar.
+  const bucketOrigin = duration === "1w" ? 4 * 86400 : 0; // Monday, 1970-01-05 UTC
+  const currentbucket = (Math.floor((trade.time - bucketOrigin) / bucketSize) *
+    bucketSize + bucketOrigin) as UTCTimestamp;
 
   if (!lastCandle || currentbucket > (lastCandle.time as UTCTimestamp)) {
     lastCandle = {

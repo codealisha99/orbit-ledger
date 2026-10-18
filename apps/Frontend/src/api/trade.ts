@@ -1,28 +1,36 @@
 
 import axios from "axios";
-import type { SYMBOL } from "../utils/constants";
+import type { Duration, SYMBOL } from "../utils/constants";
 import type { Asset } from "../types/asset";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v2";
 
-function getTimeRangeForDuration(duration: any): number {
+function getTimeRangeForDuration(duration: Duration): number {
   switch (duration) {
     case "1m":
-      return 24 * 3600;
-    case "1d":
+      return 1000 * 60;
+    case "5m":
+      return 1000 * 5 * 60;
+    case "15m":
+      return 1000 * 15 * 60;
+    case "1h":
       return 30 * 24 * 3600;
+    case "4h":
+      return 90 * 24 * 3600;
+    case "1d":
+      return 365 * 24 * 3600;
     case "1w":
-      return 180 * 24 * 3600;
+      return 2 * 365 * 24 * 3600;
     default:
-      return 3600;
+      return 24 * 3600;
   }
 }
 
 export async function getKlineData(
-  asset: any,
-  duration: any,
-  startTime?: any,
-  endTime?: string,
+  asset: SYMBOL,
+  duration: Duration,
+  startTime?: number,
+  endTime?: number,
 ) {
   const currentTimeSec = Math.floor(Date.now() / 1000);
 
