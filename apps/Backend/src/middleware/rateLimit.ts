@@ -5,12 +5,23 @@ import type { Request } from "express";
 
 const redisUrl = process.env.RATE_LIMIT_REDIS_URL || process.env.REDIS_URL;
 const redisClient = redisUrl ? createClient({ url: redisUrl }) : null;
+let redisConnectPromise: Promise<void> | null = null;
 
 redisClient?.on("error", (error) => {
   console.error("[RATE_LIMIT] Redis connection error:", error.message);
 });
 
 /** Connect before listening so all production instances share rate limit counters. */
+async function ensureRateLimitRedisConnected(): Promise<void> {
+  if (!redisClient || redisClient.isReady) return;
+  if (!redisConnectPromise) {
+    redisConnectPromise = redisClient.connect().then(() => undefined).finally(() => {
+      redisConnectPromise = null;
+    });
+  }
+  await redisConnectPromise;
+}
+
 export async function connectRateLimitStore(): Promise<void> {
   if (!redisClient) {
     if (process.env.NODE_ENV === "production") {
@@ -20,7 +31,7 @@ export async function connectRateLimitStore(): Promise<void> {
     return;
   }
 
-  if (!redisClient.isOpen) await redisClient.connect();
+  await ensureRateLimitRedisConnected();
   await redisClient.ping();
   console.log("[RATE_LIMIT] Shared Redis store connected");
 }
@@ -47,10 +58,8 @@ function limiter(prefix: string, windowMs: number, max: number, error: string) {
       ? {
           store: new RedisStore({
             prefix: `orbitledger:ratelimit:${prefix}:`,
-            sendCommand: (...args: string[]) => {
-              if (!redisClient.isOpen) {
-                throw new Error("Rate limit Redis connection is not available");
-              }
+            sendCommand: async (...args: string[]) => {
+              await ensureRateLimitRedisConnected();
               return redisClient.sendCommand(args);
             },
           }),
