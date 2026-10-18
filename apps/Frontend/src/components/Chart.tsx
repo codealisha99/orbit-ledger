@@ -42,9 +42,19 @@ export default function ChartComponent({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [followMode, setFollowMode] = useState<boolean>(true);
+  const [theme, setTheme] = useState("dark");
   const tooltipTimeoutRef = useRef<number | null>(null);
   const userScrolledRef = useRef<boolean>(false);
   const lastCandleTimeRef = useRef<number>(0);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const updateTheme = () => setTheme(root.dataset.theme || "dark");
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+    updateTheme();
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
   }, [symbol]);
@@ -86,14 +96,18 @@ export default function ChartComponent({
         setLoading(true);
         setError(null);
 
+        const styles = getComputedStyle(document.documentElement);
+        const surface = styles.getPropertyValue("--nt-surface2").trim();
+        const foreground = styles.getPropertyValue("--nt-text").trim();
+        const accent = styles.getPropertyValue("--nt-accent").trim();
         chart = createChart(chartContainerRef.current!, {
           layout: {
             background: {
               type: ColorType.VerticalGradient,
-              topColor: "#141D22",
-              bottomColor: "#141D22",
+              topColor: surface,
+              bottomColor: surface,
             },
-            textColor: "#FFFFFF",
+            textColor: foreground,
           },
           width: chartContainerRef.current!.clientWidth,
           height: chartContainerRef.current!.clientHeight,
@@ -115,10 +129,10 @@ export default function ChartComponent({
         });
 
         candlestickSeries = chart.addSeries(CandlestickSeries, {
-          upColor: "#0EA5E9",
+          upColor: accent,
           downColor: "#EB483F",
           borderVisible: false,
-          wickUpColor: "#0EA5E9",
+          wickUpColor: accent,
           wickDownColor: "#EB483F",
         });
 
@@ -256,20 +270,20 @@ export default function ChartComponent({
       }
       candlestickSeries = null;
     };
-  }, [duration, symbol, onPriceUpdate]);
+  }, [duration, symbol, onPriceUpdate, theme]);
 
   return (
-    <div className="text-[#f3f4f6] h-full w-full relative">
+    <div className="text-[var(--nt-text)] h-full w-full relative">
       {tooltipVisible && tooltip && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 bg-[#0a1929]/90 backdrop-blur-sm border border-[#1e3a5f] rounded-lg text-sm shadow-lg transition-opacity">
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 bg-[color:color-mix(in_srgb,var(--nt-surface)_90%,transparent)] backdrop-blur-sm border border-[var(--nt-border)] rounded-lg text-sm shadow-lg transition-opacity">
           {tooltip}
         </div>
       )}
-      <div className="bg-[#0f0f10] backdrop-blur-xl border border-[#2b2b2c] rounded-xl overflow-hidden h-full w-full flex flex-col">
-        <div className="flex flex-wrap items-center justify-between gap-2 p-3 border-b border-[#2b2b2c]">
+      <div className="bg-[var(--nt-surface)] backdrop-blur-xl border border-[var(--nt-border)] rounded-xl overflow-hidden h-full w-full flex flex-col">
+        <div className="flex flex-wrap items-center justify-between gap-2 p-3 border-b border-[var(--nt-border)]">
           <div>
-            <h2 className="text-lg font-semibold text-[#f3f4f6]">{symbol}</h2>
-            <div className="text-sm text-[#9ca3af]">
+            <h2 className="text-lg font-semibold text-[var(--nt-text)]">{symbol}</h2>
+            <div className="text-sm text-[var(--nt-muted)]">
               {duration === Duration.candles_1m && "1 Minute Chart"}
               {duration === Duration.candles_1d && "Daily Chart"}
               {duration === Duration.candles_1w && "Weekly Chart"}
@@ -286,8 +300,8 @@ export default function ChartComponent({
               }}
               className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                 followMode
-                  ? "bg-white/10 text-white border border-white/30"
-                  : "bg-[#171717] text-[#9ca3af] border border-[#2f2f2f]"
+                  ? "bg-[color:color-mix(in_srgb,var(--nt-surface2)_10%,transparent)] text-[var(--nt-text)] border border-[color:color-mix(in_srgb,var(--nt-border)_30%,transparent)]"
+                  : "bg-[var(--nt-surface2)] text-[var(--nt-muted)] border border-[var(--nt-border)]"
               }`}
             >
               <div className="flex items-center gap-1.5">
@@ -310,9 +324,9 @@ export default function ChartComponent({
             </button>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center border border-[#2f2f2f] rounded-lg bg-[#171717]">
+            <div className="flex items-center border border-[var(--nt-border)] rounded-lg bg-[var(--nt-surface2)]">
               <button
-                className="p-2 rounded-l-lg hover:bg-white/10 transition-colors text-[#9ca3af] hover:text-[#f3f4f6]"
+                className="p-2 rounded-l-lg hover:bg-[color:color-mix(in_srgb,var(--nt-surface2)_10%,transparent)] transition-colors text-[var(--nt-muted)] hover:text-[var(--nt-text)]"
                 onClick={() => {
                   if (chartRef.current) {
                     const logicalRange = chartRef.current.timeScale().getVisibleLogicalRange();
@@ -333,9 +347,9 @@ export default function ChartComponent({
                   <line x1="8" y1="11" x2="14" y2="11"></line>
                 </svg>
               </button>
-              <div className="w-[1px] h-8 bg-[#2f2f2f]"></div>
+              <div className="w-[1px] h-8 bg-[var(--nt-border)]"></div>
               <button
-                className="p-2 hover:bg-white/10 transition-colors text-[#9ca3af] hover:text-[#f3f4f6]"
+                className="p-2 hover:bg-[color:color-mix(in_srgb,var(--nt-surface2)_10%,transparent)] transition-colors text-[var(--nt-muted)] hover:text-[var(--nt-text)]"
                 onClick={() => {
                   if (chartRef.current) {
                     const logicalRange = chartRef.current.timeScale().getVisibleLogicalRange();
@@ -356,9 +370,9 @@ export default function ChartComponent({
                   <line x1="8" y1="11" x2="14" y2="11"></line>
                 </svg>
               </button>
-              <div className="w-[1px] h-8 bg-[#2f2f2f]"></div>
+              <div className="w-[1px] h-8 bg-[var(--nt-border)]"></div>
               <button
-                className="p-2 rounded-r-lg hover:bg-white/10 transition-colors text-[#9ca3af] hover:text-[#f3f4f6]"
+                className="p-2 rounded-r-lg hover:bg-[color:color-mix(in_srgb,var(--nt-surface2)_10%,transparent)] transition-colors text-[var(--nt-muted)] hover:text-[var(--nt-text)]"
                 onClick={() => {
                   if (chartRef.current) {
                     chartRef.current.timeScale().fitContent();
@@ -376,16 +390,16 @@ export default function ChartComponent({
         </div>
         <div className="flex-grow relative">
           {loading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-[#0a1929]/50 backdrop-blur-sm z-10">
+            <div className="absolute inset-0 flex items-center justify-center bg-[color:color-mix(in_srgb,var(--nt-surface)_50%,transparent)] backdrop-blur-sm z-10">
               <div className="flex flex-col items-center gap-3">
-                <div className="w-12 h-12 border-4 border-[#1e3a5f] border-t-[#0EA5E9] rounded-full animate-spin"></div>
-                <p className="text-sm text-[#94a3b8]">Loading chart data...</p>
+                <div className="w-12 h-12 border-4 border-[var(--nt-border)] border-t-[var(--nt-accent)] rounded-full animate-spin"></div>
+                <p className="text-sm text-[var(--nt-muted)]">Loading chart data...</p>
               </div>
             </div>
           )}
           {error && !loading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-[#0a1929]/50 backdrop-blur-sm z-10">
-              <div className="flex flex-col items-center gap-3 p-6 bg-[#0d2137] border border-red-500/30 rounded-xl">
+            <div className="absolute inset-0 flex items-center justify-center bg-[color:color-mix(in_srgb,var(--nt-surface)_50%,transparent)] backdrop-blur-sm z-10">
+              <div className="flex flex-col items-center gap-3 p-6 bg-[var(--nt-surface2)] border border-red-500/30 rounded-xl">
                 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500">
                   <circle cx="12" cy="12" r="10"></circle>
                   <line x1="12" y1="8" x2="12" y2="12"></line>
@@ -394,7 +408,7 @@ export default function ChartComponent({
                 <p className="text-red-400 font-medium">{error}</p>
                 <button
                   onClick={() => window.location.reload()}
-                  className="mt-2 px-4 py-2 bg-[#1e3a5f] hover:bg-[#0EA5E9]/20 text-[#e2e8f0] rounded-lg transition-colors"
+                  className="mt-2 px-4 py-2 bg-[var(--nt-border)] hover:bg-[color:color-mix(in_srgb,var(--nt-accent)_20%,transparent)] text-[var(--nt-text)] rounded-lg transition-colors"
                 >
                   Reload Page
                 </button>

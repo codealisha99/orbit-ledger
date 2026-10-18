@@ -40,21 +40,21 @@ export default function AskBids({ symbol }: { symbol?: SYMBOL }) {
     <div className="w-full">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-xs text-[#94a3b8] border-b border-[#1e3a5f]/40">
+          <tr className="text-xs text-[var(--nt-muted)] border-b border-[color:color-mix(in_srgb,var(--nt-border)_40%,transparent)]">
             <th className="py-3 text-left font-medium">Symbol</th>
             <th className="py-3 text-right font-medium">Bid</th>
             <th className="py-3 text-right font-medium">Ask</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-[#1e3a5f]/20">
+        <tbody className="divide-y divide-[color:color-mix(in_srgb,var(--nt-border)_20%,transparent)]">
           {Object.values(bid_asks).map((item) => (
             <tr
               key={item.symbol}
-              className={`hover:bg-[#0EA5E9]/5 transition-colors ${
-                symbol === `${item.symbol}USDT` ? "bg-[#0EA5E9]/5" : ""
+              className={`hover:bg-[color:color-mix(in_srgb,var(--nt-accent)_5%,transparent)] transition-colors ${
+                symbol === `${item.symbol}USDT` ? "bg-[color:color-mix(in_srgb,var(--nt-accent)_5%,transparent)]" : ""
               }`}
             >
-              <th className="py-4 text-left font-medium text-[#e2e8f0]">
+              <th className="py-4 text-left font-medium text-[var(--nt-text)]">
                 <div className="flex items-center">
                   <Image
                     src={imageUrl[item.symbol as keyof typeof imageUrl]}
@@ -66,11 +66,11 @@ export default function AskBids({ symbol }: { symbol?: SYMBOL }) {
                   />
                   <div>
                     <div className="text-sm font-semibold">{item.symbol}</div>
-                    <div className="text-xs text-[#94a3b8]">USDT</div>
+                    <div className="text-xs text-[var(--nt-muted)]">USDT</div>
                   </div>
                 </div>
               </th>
-              <td className="py-4 text-right font-mono text-[#0EA5E9] font-semibold">
+              <td className="py-4 text-right font-mono text-[var(--nt-accent)] font-semibold">
                 {item.asks}
               </td>
               <td className="py-4 text-right font-mono text-[#ef4444] font-semibold">

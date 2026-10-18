@@ -29,10 +29,10 @@ export default function OAuthButtons({ disabled = false }: OAuthButtonsProps) {
     <div className="space-y-4">
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-[#1e3a5f]"></div>
+          <div className="w-full border-t border-[var(--nt-border)]"></div>
         </div>
         <div className="relative flex justify-center text-sm">
-          <span className="px-4 bg-[#0a1929] text-[#94a3b8]">Or continue with</span>
+          <span className="px-4 bg-[var(--nt-surface)] text-[var(--nt-muted)]">Or continue with</span>
         </div>
       </div>
 
@@ -40,10 +40,10 @@ export default function OAuthButtons({ disabled = false }: OAuthButtonsProps) {
         <button
           onClick={handleGoogleLogin}
           disabled={disabled || isLoading !== null}
-          className="flex items-center justify-center px-4 py-3 bg-[#050f1a]/50 border border-[#1e3a5f] text-[#e2e8f0] hover:bg-[#0d2137] hover:border-[#0EA5E9]/50 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center justify-center px-4 py-3 bg-[color:color-mix(in_srgb,var(--nt-bg)_50%,transparent)] border border-[var(--nt-border)] text-[var(--nt-text)] hover:bg-[var(--nt-surface2)] hover:border-[color:color-mix(in_srgb,var(--nt-accent)_50%,transparent)] rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading === "google" ? (
-            <div className="animate-spin h-5 w-5 border-2 border-[#e2e8f0] border-t-transparent rounded-full mr-2"></div>
+            <div className="animate-spin h-5 w-5 border-2 border-[var(--nt-text)] border-t-transparent rounded-full mr-2"></div>
           ) : (
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -58,10 +58,10 @@ export default function OAuthButtons({ disabled = false }: OAuthButtonsProps) {
         <button
           onClick={handleGithubLogin}
           disabled={disabled || isLoading !== null}
-          className="flex items-center justify-center px-4 py-3 bg-[#050f1a]/50 border border-[#1e3a5f] text-[#e2e8f0] hover:bg-[#0d2137] hover:border-[#0EA5E9]/50 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center justify-center px-4 py-3 bg-[color:color-mix(in_srgb,var(--nt-bg)_50%,transparent)] border border-[var(--nt-border)] text-[var(--nt-text)] hover:bg-[var(--nt-surface2)] hover:border-[color:color-mix(in_srgb,var(--nt-accent)_50%,transparent)] rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading === "github" ? (
-            <div className="animate-spin h-5 w-5 border-2 border-[#e2e8f0] border-t-transparent rounded-full mr-2"></div>
+            <div className="animate-spin h-5 w-5 border-2 border-[var(--nt-text)] border-t-transparent rounded-full mr-2"></div>
           ) : (
             <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
               <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0012 2z" />

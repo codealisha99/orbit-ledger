@@ -298,16 +298,16 @@ export default function BuySell({
 
   return (
     <aside
-      className="w-full rounded-lg border border-[#1e3a5f] bg-[#0a1929]/80 backdrop-blur-xl text-[#e2e8f0] shadow-sm h-full flex flex-col"
+      className="w-full rounded-lg border border-[var(--nt-border)] bg-[color:color-mix(in_srgb,var(--nt-surface)_80%,transparent)] backdrop-blur-xl text-[var(--nt-text)] shadow-sm h-full flex flex-col"
       aria-label="Trade ticket"
     >
-      <div className="flex border-b border-[#1e3a5f]/40">
+      <div className="flex border-b border-[color:color-mix(in_srgb,var(--nt-border)_40%,transparent)]">
         <button
           onClick={() => setActiveTab("buy")}
           className={`flex-1 py-3 text-center font-medium text-sm transition ${
             activeTab === "buy"
-              ? "text-[#0EA5E9] border-b-2 border-[#0EA5E9]"
-              : "text-[#e2e8f0] hover:text-[#e2e8f0]"
+              ? "text-[var(--nt-accent)] border-b-2 border-[var(--nt-accent)]"
+              : "text-[var(--nt-text)] hover:text-[var(--nt-text)]"
           }`}
         >
           Buy {symbol}
@@ -317,7 +317,7 @@ export default function BuySell({
           className={`flex-1 py-3 text-center font-medium text-sm transition ${
             activeTab === "sell"
               ? "text-[#EB483F] border-b-2 border-[#EB483F]"
-              : "text-[#e2e8f0] hover:text-[#e2e8f0]"
+              : "text-[var(--nt-text)] hover:text-[var(--nt-text)]"
           }`}
         >
           Sell {symbol}
@@ -327,36 +327,36 @@ export default function BuySell({
       <div className="p-4 flex-1 overflow-y-auto">
         <header className="mb-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium text-[#e2e8f0]">
+            <h2 className="text-sm font-medium text-[var(--nt-text)]">
               {activeTab === "buy" ? "Buy Order" : "Sell Order"}
             </h2>
-            <span className="rounded-md border border-[#1e3a5f] bg-[#0d2137]/60 backdrop-blur-sm px-3 py-1 text-xs text-[#e2e8f0]">
+            <span className="rounded-md border border-[var(--nt-border)] bg-[color:color-mix(in_srgb,var(--nt-surface2)_60%,transparent)] backdrop-blur-sm px-3 py-1 text-xs text-[var(--nt-text)]">
               {orderType === "market" ? "Market" : "Limit"}
             </span>
           </div>
 
           <div className="mt-3 flex items-center gap-3">
             {currentAsset ? (
-              <div className="flex items-center gap-3 p-3 bg-[#0d2137]/60 backdrop-blur-sm rounded-md border border-[#1e3a5f]">
+              <div className="flex items-center gap-3 p-3 bg-[color:color-mix(in_srgb,var(--nt-surface2)_60%,transparent)] backdrop-blur-sm rounded-md border border-[var(--nt-border)]">
                 <img
                   src={currentAsset.imageUrl}
                   alt={currentAsset.name}
                   className="h-6 w-6 rounded-full"
                 />
                 <div>
-                  <div className="text-sm font-semibold text-[#e2e8f0]">
+                  <div className="text-sm font-semibold text-[var(--nt-text)]">
                     {currentAsset.name}
                   </div>
-                  <div className="text-xs text-[#94a3b8]">{symbol}/USDT</div>
+                  <div className="text-xs text-[var(--nt-muted)]">{symbol}/USDT</div>
                 </div>
               </div>
             ) : (
-              <div className="text-sm font-semibold text-[#e2e8f0]">
+              <div className="text-sm font-semibold text-[var(--nt-text)]">
                 {symbol}
               </div>
             )}
-            <div className="text-xs ml-auto bg-[#0d2137]/60 backdrop-blur-sm px-3 py-2 rounded-md border border-[#1e3a5f]">
-              <span className="text-[#e2e8f0]">Balance:</span>
+            <div className="text-xs ml-auto bg-[color:color-mix(in_srgb,var(--nt-surface2)_60%,transparent)] backdrop-blur-sm px-3 py-2 rounded-md border border-[var(--nt-border)]">
+              <span className="text-[var(--nt-text)]">Balance:</span>
               <span className="text-green-400 font-medium ml-2">
                 ${userBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
               </span>
@@ -365,9 +365,9 @@ export default function BuySell({
         </header>
 
         <section className="grid grid-cols-2 gap-3 mt-4" aria-label="Prices">
-          <div className="rounded-lg border border-[#1e3a5f] bg-[#0d2137]/60 backdrop-blur-sm p-3 relative overflow-hidden">
+          <div className="rounded-lg border border-[var(--nt-border)] bg-[color:color-mix(in_srgb,var(--nt-surface2)_60%,transparent)] backdrop-blur-sm p-3 relative overflow-hidden">
             <div className="flex items-center justify-between">
-              <div className="text-sm text-[#94a3b8]">Sell Price</div>
+              <div className="text-sm text-[var(--nt-muted)]">Sell Price</div>
               <div className="text-xs bg-[#EB483F]/20 text-[#EB483F] px-2 py-1 rounded">
                 SELL
               </div>
@@ -378,23 +378,23 @@ export default function BuySell({
             </div>
             <div className="absolute w-1 h-full bg-[#EB483F]/40 left-0 top-0"></div>
           </div>
-          <div className="rounded-lg border border-[#1e3a5f] bg-[#0d2137]/60 backdrop-blur-sm p-3 relative overflow-hidden">
+          <div className="rounded-lg border border-[var(--nt-border)] bg-[color:color-mix(in_srgb,var(--nt-surface2)_60%,transparent)] backdrop-blur-sm p-3 relative overflow-hidden">
             <div className="flex items-center justify-between">
-              <div className="text-sm text-[#94a3b8]">Buy Price</div>
-              <div className="text-xs bg-[#0EA5E9]/20 text-[#0EA5E9] px-2 py-1 rounded">
+              <div className="text-sm text-[var(--nt-muted)]">Buy Price</div>
+              <div className="text-xs bg-[color:color-mix(in_srgb,var(--nt-accent)_20%,transparent)] text-[var(--nt-accent)] px-2 py-1 rounded">
                 BUY
               </div>
             </div>
-            <div className="mt-2 text-lg font-semibold text-[#0EA5E9] flex items-center">
+            <div className="mt-2 text-lg font-semibold text-[var(--nt-accent)] flex items-center">
               <span className="text-sm mr-1">$</span>
               {askPrice}
             </div>
-            <div className="absolute w-1 h-full bg-[#0EA5E9]/40 left-0 top-0"></div>
+            <div className="absolute w-1 h-full bg-[color:color-mix(in_srgb,var(--nt-accent)_40%,transparent)] left-0 top-0"></div>
           </div>
         </section>
 
         <section className="mt-4" aria-label="Risk indicator">
-          <div className="bg-[#0d2137]/60 backdrop-blur-sm border border-[#1e3a5f] rounded-md p-3">
+          <div className="bg-[color:color-mix(in_srgb,var(--nt-surface2)_60%,transparent)] backdrop-blur-sm border border-[var(--nt-border)] rounded-md p-3">
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
                 <svg
@@ -407,17 +407,17 @@ export default function BuySell({
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="text-[#94a3b8]"
+                  className="text-[var(--nt-muted)]"
                 >
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
                 </svg>
-                <span className="text-[#94a3b8]">Risk Level</span>
+                <span className="text-[var(--nt-muted)]">Risk Level</span>
               </div>
               <span className="font-medium text-green-400 bg-green-500/10 px-2 py-1 rounded text-xs">
                 LOW
               </span>
             </div>
-            <div className="mt-2 h-2 w-full rounded-full bg-[#1e3a5f] overflow-hidden">
+            <div className="mt-2 h-2 w-full rounded-full bg-[var(--nt-border)] overflow-hidden">
               <div
                 className="h-2 rounded-full bg-gradient-to-r from-green-500 to-green-400"
                 style={{ width: "30%" }}
@@ -427,7 +427,7 @@ export default function BuySell({
           </div>
         </section>
 
-        <div className="mt-3 bg-[#0f171b] border border-[#263136] rounded-md p-2">
+        <div className="mt-3 bg-[var(--nt-surface)] border border-[var(--nt-border)] rounded-md p-2">
           <div className="flex items-center gap-1 mb-1.5">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -439,15 +439,15 @@ export default function BuySell({
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="text-white/60"
+              className="text-[color:color-mix(in_srgb,var(--nt-text)_60%,transparent)]"
             >
               <circle cx="12" cy="12" r="10"></circle>
               <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
-            <span className="text-xs text-white/60">Order Type</span>
+            <span className="text-xs text-[color:color-mix(in_srgb,var(--nt-text)_60%,transparent)]">Order Type</span>
           </div>
           <nav
-            className="inline-flex w-full rounded-md border border-[#263136] bg-[#141D22] p-0.5"
+            className="inline-flex w-full rounded-md border border-[var(--nt-border)] bg-[var(--nt-surface2)] p-0.5"
             role="tablist"
             aria-label="Order type"
           >
@@ -456,8 +456,8 @@ export default function BuySell({
               aria-selected={orderType === "market"}
               className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition ${
                 orderType === "market"
-                  ? "bg-[#1c2a31] text-white shadow-sm"
-                  : "text-white/70 hover:text-white"
+                  ? "bg-[var(--nt-surface2)] text-[var(--nt-text)] shadow-sm"
+                  : "text-[color:color-mix(in_srgb,var(--nt-text)_70%,transparent)] hover:text-[var(--nt-text)]"
               }`}
               onClick={() => setOrderType("market")}
             >
@@ -468,8 +468,8 @@ export default function BuySell({
               aria-selected={orderType === "pending"}
               className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition ${
                 orderType === "pending"
-                  ? "bg-[#1c2a31] text-white shadow-sm"
-                  : "text-white/70 hover:text-white"
+                  ? "bg-[var(--nt-surface2)] text-[var(--nt-text)] shadow-sm"
+                  : "text-[color:color-mix(in_srgb,var(--nt-text)_70%,transparent)] hover:text-[var(--nt-text)]"
               }`}
               onClick={() => setOrderType("pending")}
             >
@@ -478,7 +478,7 @@ export default function BuySell({
           </nav>
         </div>
 
-        <section className="mt-3 bg-[#0f171b] border border-[#263136] rounded-md p-2">
+        <section className="mt-3 bg-[var(--nt-surface)] border border-[var(--nt-border)] rounded-md p-2">
           <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-1">
               <svg
@@ -491,16 +491,16 @@ export default function BuySell({
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="text-white/60"
+                className="text-[color:color-mix(in_srgb,var(--nt-text)_60%,transparent)]"
               >
                 <line x1="12" y1="1" x2="12" y2="23"></line>
                 <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
               </svg>
-              <label htmlFor="margin" className="text-xs text-white/60">
+              <label htmlFor="margin" className="text-xs text-[color:color-mix(in_srgb,var(--nt-text)_60%,transparent)]">
                 Trading Margin
               </label>
             </div>
-            <span className="text-[10px] text-white/50 bg-[#1c2a31] px-1.5 py-0.5 rounded">
+            <span className="text-[10px] text-[color:color-mix(in_srgb,var(--nt-text)_50%,transparent)] bg-[var(--nt-surface2)] px-1.5 py-0.5 rounded">
               ${margin} USD
             </span>
           </div>
@@ -509,7 +509,7 @@ export default function BuySell({
             <button
               type="button"
               aria-label="Decrease margin"
-              className="rounded-md border border-[#263136] px-2 py-1 text-xs text-white/80 hover:bg-[#1c2a31] transition-colors"
+              className="rounded-md border border-[var(--nt-border)] px-2 py-1 text-xs text-[color:color-mix(in_srgb,var(--nt-text)_80%,transparent)] hover:bg-[var(--nt-surface2)] transition-colors"
               onClick={() => setMargin((prev) => Math.max(10, Number(prev) - 10))}
               disabled={isSubmitting}
             >
@@ -517,7 +517,7 @@ export default function BuySell({
             </button>
             <div className="w-full relative">
               <div className="absolute left-0 top-0 h-full px-2 flex items-center">
-                <span className="text-xs text-white/50">$</span>
+                <span className="text-xs text-[color:color-mix(in_srgb,var(--nt-text)_50%,transparent)]">$</span>
               </div>
               <input
                 id="margin"
@@ -535,13 +535,13 @@ export default function BuySell({
                   }
                 }}
                 disabled={isSubmitting}
-                className="w-full rounded-md border border-[#263136] bg-[#141D22] pl-6 pr-2 py-1.5 text-xs outline-none focus:border-[#0EA5E9] transition-colors"
+                className="w-full rounded-md border border-[var(--nt-border)] bg-[var(--nt-surface2)] pl-6 pr-2 py-1.5 text-xs outline-none focus:border-[var(--nt-accent)] transition-colors"
               />
             </div>
             <button
               type="button"
               aria-label="Increase margin"
-              className="rounded-md border border-[#263136] px-2 py-1 text-xs text-white/80 hover:bg-[#1c2a31] transition-colors"
+              className="rounded-md border border-[var(--nt-border)] px-2 py-1 text-xs text-[color:color-mix(in_srgb,var(--nt-text)_80%,transparent)] hover:bg-[var(--nt-surface2)] transition-colors"
               onClick={() => setMargin((prev) => Number(prev) + 10)}
               disabled={isSubmitting}
             >
@@ -549,9 +549,9 @@ export default function BuySell({
             </button>
           </div>
 
-          <div className="mt-2 h-1 w-full bg-[#263136] rounded-full overflow-hidden">
+          <div className="mt-2 h-1 w-full bg-[var(--nt-border)] rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-[#0EA5E9]/30 to-[#0EA5E9]/80"
+              className="h-full bg-gradient-to-r from-[color:color-mix(in_srgb,var(--nt-accent)_30%,transparent)] to-[color:color-mix(in_srgb,var(--nt-accent)_80%,transparent)]"
               style={{
                 width: `${Math.min(100, (Number(margin) / userBalance) * 100)}%`,
               }}
@@ -559,7 +559,7 @@ export default function BuySell({
           </div>
         </section>
 
-        <section className="mt-3 bg-[#0f171b] border border-[#263136] rounded-md p-2">
+        <section className="mt-3 bg-[var(--nt-surface)] border border-[var(--nt-border)] rounded-md p-2">
           <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-1">
               <svg
@@ -572,16 +572,16 @@ export default function BuySell({
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="text-white/60"
+                className="text-[color:color-mix(in_srgb,var(--nt-text)_60%,transparent)]"
               >
                 <path d="M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1"></path>
                 <polygon points="12 15 17 21 7 21 12 15"></polygon>
               </svg>
-              <label className="text-xs text-white/60">Leverage</label>
+              <label className="text-xs text-[color:color-mix(in_srgb,var(--nt-text)_60%,transparent)]">Leverage</label>
             </div>
             <div className="flex items-center">
-              <div className="text-xs text-white/50 bg-[#1c2a31] px-1.5 py-0.5 rounded mr-1">
-                <span className="text-white/70 font-medium">{leverage}x</span>
+              <div className="text-xs text-[color:color-mix(in_srgb,var(--nt-text)_50%,transparent)] bg-[var(--nt-surface2)] px-1.5 py-0.5 rounded mr-1">
+                <span className="text-[color:color-mix(in_srgb,var(--nt-text)_70%,transparent)] font-medium">{leverage}x</span>
               </div>
               <div className="text-[10px] text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded">
                 ${(Number(margin) * leverage).toLocaleString("en-US")}
@@ -600,15 +600,15 @@ export default function BuySell({
                       ? "border-red-500 bg-red-500/10 text-red-400"
                       : lev >= 20
                       ? "border-orange-500 bg-orange-500/10 text-orange-400"
-                      : "border-[#0EA5E9] bg-[#0EA5E9]/10 text-[#0EA5E9]"
-                    : "border-[#263136] text-white/70 hover:bg-[#1c2a31]"
+                      : "border-[var(--nt-accent)] bg-[color:color-mix(in_srgb,var(--nt-accent)_10%,transparent)] text-[var(--nt-accent)]"
+                    : "border-[var(--nt-border)] text-[color:color-mix(in_srgb,var(--nt-text)_70%,transparent)] hover:bg-[var(--nt-surface2)]"
                 } px-1 py-1.5 text-xs transition-all`}
                 onClick={() => setLeverage(lev)}
                 disabled={isSubmitting}
               >
                 {leverage === lev && (
                   <div className={`absolute top-0 left-0 w-1 h-full ${
-                    lev >= 100 ? "bg-red-500" : lev >= 20 ? "bg-orange-500" : "bg-[#0EA5E9]"
+                    lev >= 100 ? "bg-red-500" : lev >= 20 ? "bg-orange-500" : "bg-[var(--nt-accent)]"
                   }`}></div>
                 )}
                 {lev}x
@@ -651,7 +651,7 @@ export default function BuySell({
         </section>
 
         <div className="mt-3 space-y-2">
-          <div className="bg-[#0f171b] border border-[#263136] rounded-md p-2">
+          <div className="bg-[var(--nt-surface)] border border-[var(--nt-border)] rounded-md p-2">
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-1">
                 <svg
@@ -664,11 +664,11 @@ export default function BuySell({
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="text-white/60"
+                  className="text-[color:color-mix(in_srgb,var(--nt-text)_60%,transparent)]"
                 >
                   <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                 </svg>
-                <label htmlFor="tp-toggle" className="text-xs text-white/60">
+                <label htmlFor="tp-toggle" className="text-xs text-[color:color-mix(in_srgb,var(--nt-text)_60%,transparent)]">
                   Take Profit
                 </label>
                 <span className="bg-green-500/10 text-green-400 text-[10px] px-1.5 py-0.5 rounded">
@@ -684,7 +684,7 @@ export default function BuySell({
                     checked={tpEnabled}
                     onChange={(e) => setTpEnabled(e.target.checked)}
                   />
-                  <div className="w-9 h-5 bg-[#1c2a31] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white/30 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#0EA5E9]/30"></div>
+                  <div className="w-9 h-5 bg-[var(--nt-surface2)] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-[var(--nt-border)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[color:color-mix(in_srgb,var(--nt-surface2)_30%,transparent)] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[color:color-mix(in_srgb,var(--nt-accent)_30%,transparent)]"></div>
                 </label>
               </div>
             </div>
@@ -692,7 +692,7 @@ export default function BuySell({
             <div className="space-y-2">
               <div className="relative">
                 <div className="absolute left-0 top-0 h-full px-2 flex items-center">
-                  <span className="text-xs text-white/50">$</span>
+                  <span className="text-xs text-[color:color-mix(in_srgb,var(--nt-text)_50%,transparent)]">$</span>
                 </div>
                 <input
                   id="tp-price"
@@ -707,10 +707,10 @@ export default function BuySell({
                     setTpManualEdit(true); // User is manually editing
                   }}
                   className={`
-                    w-full rounded-md border border-[#263136] bg-[#141D22] pl-6 pr-2 py-1.5 text-xs outline-none
+                    w-full rounded-md border border-[var(--nt-border)] bg-[var(--nt-surface2)] pl-6 pr-2 py-1.5 text-xs outline-none
                     ${
                       tpEnabled
-                        ? "focus:border-[#0EA5E9] transition-colors"
+                        ? "focus:border-[var(--nt-accent)] transition-colors"
                         : "opacity-50"
                     }
                   `}
@@ -719,7 +719,7 @@ export default function BuySell({
 
               {tpEnabled && (
                 <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-white/50">Quick:</span>
+                  <span className="text-[10px] text-[color:color-mix(in_srgb,var(--nt-text)_50%,transparent)]">Quick:</span>
                   {[2, 5, 10, 15].map((percent) => (
                     <button
                       key={percent}
@@ -731,7 +731,7 @@ export default function BuySell({
                       className={`flex-1 text-[10px] px-2 py-1 rounded border transition-colors ${
                         tpPercentage === percent && !tpManualEdit
                           ? "border-green-500 bg-green-500/20 text-green-400"
-                          : "border-[#263136] bg-[#141D22] text-white/60 hover:border-green-500/50"
+                          : "border-[var(--nt-border)] bg-[var(--nt-surface2)] text-[color:color-mix(in_srgb,var(--nt-text)_60%,transparent)] hover:border-green-500/50"
                       }`}
                     >
                       +{percent}%
@@ -745,7 +745,7 @@ export default function BuySell({
               <div className="mt-1.5 space-y-1">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1">
-                    <div className="text-[10px] text-white/50">
+                    <div className="text-[10px] text-[color:color-mix(in_srgb,var(--nt-text)_50%,transparent)]">
                       Est. Profit:
                     </div>
                   </div>
@@ -762,7 +762,7 @@ export default function BuySell({
                     )}
                   </div>
                 </div>
-                <div className="text-[10px] text-white/40">
+                <div className="text-[10px] text-[color:color-mix(in_srgb,var(--nt-text)_40%,transparent)]">
                   Target: ${tpPrice} | Current: $
                   {activeTab === "buy" ? askPrice : bidPrice}
                 </div>
@@ -770,7 +770,7 @@ export default function BuySell({
             )}
           </div>
 
-          <div className="bg-[#0f171b] border border-[#263136] rounded-md p-2">
+          <div className="bg-[var(--nt-surface)] border border-[var(--nt-border)] rounded-md p-2">
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-1">
                 <svg
@@ -783,12 +783,12 @@ export default function BuySell({
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="text-white/60"
+                  className="text-[color:color-mix(in_srgb,var(--nt-text)_60%,transparent)]"
                 >
                   <path d="M10 16l-6-6 6-6"></path>
                   <path d="M20 21v-7a4 4 0 0 0-4-4H5"></path>
                 </svg>
-                <label htmlFor="sl-toggle" className="text-xs text-white/60">
+                <label htmlFor="sl-toggle" className="text-xs text-[color:color-mix(in_srgb,var(--nt-text)_60%,transparent)]">
                   Stop Loss
                 </label>
                 <span className="bg-red-500/10 text-red-400 text-[10px] px-1.5 py-0.5 rounded">
@@ -804,7 +804,7 @@ export default function BuySell({
                     checked={slEnabled}
                     onChange={(e) => setSlEnabled(e.target.checked)}
                   />
-                  <div className="w-9 h-5 bg-[#1c2a31] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white/30 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#EB483F]/30"></div>
+                  <div className="w-9 h-5 bg-[var(--nt-surface2)] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-[var(--nt-border)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[color:color-mix(in_srgb,var(--nt-surface2)_30%,transparent)] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#EB483F]/30"></div>
                 </label>
               </div>
             </div>
@@ -812,7 +812,7 @@ export default function BuySell({
             <div className="space-y-2">
               <div className="relative">
                 <div className="absolute left-0 top-0 h-full px-2 flex items-center">
-                  <span className="text-xs text-white/50">$</span>
+                  <span className="text-xs text-[color:color-mix(in_srgb,var(--nt-text)_50%,transparent)]">$</span>
                 </div>
                 <input
                   id="sl-price"
@@ -827,7 +827,7 @@ export default function BuySell({
                     setSlManualEdit(true); // User is manually editing
                   }}
                   className={`
-                    w-full rounded-md border border-[#263136] bg-[#141D22] pl-6 pr-2 py-1.5 text-xs outline-none
+                    w-full rounded-md border border-[var(--nt-border)] bg-[var(--nt-surface2)] pl-6 pr-2 py-1.5 text-xs outline-none
                     ${
                       slEnabled
                         ? "focus:border-[#EB483F] transition-colors"
@@ -839,7 +839,7 @@ export default function BuySell({
 
               {slEnabled && (
                 <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-white/50">Quick:</span>
+                  <span className="text-[10px] text-[color:color-mix(in_srgb,var(--nt-text)_50%,transparent)]">Quick:</span>
                   {[2, 5, 10, 15].map((percent) => (
                     <button
                       key={percent}
@@ -851,7 +851,7 @@ export default function BuySell({
                       className={`flex-1 text-[10px] px-2 py-1 rounded border transition-colors ${
                         slPercentage === percent && !slManualEdit
                           ? "border-red-500 bg-red-500/20 text-red-400"
-                          : "border-[#263136] bg-[#141D22] text-white/60 hover:border-red-500/50"
+                          : "border-[var(--nt-border)] bg-[var(--nt-surface2)] text-[color:color-mix(in_srgb,var(--nt-text)_60%,transparent)] hover:border-red-500/50"
                       }`}
                     >
                       -{percent}%
@@ -865,7 +865,7 @@ export default function BuySell({
               <div className="mt-1.5 space-y-1">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1">
-                    <div className="text-[10px] text-white/50">Est. Loss:</div>
+                    <div className="text-[10px] text-[color:color-mix(in_srgb,var(--nt-text)_50%,transparent)]">Est. Loss:</div>
                   </div>
                   <div
                     className={`text-[10px] px-1.5 py-0.5 rounded ${
@@ -880,7 +880,7 @@ export default function BuySell({
                     )}
                   </div>
                 </div>
-                <div className="text-[10px] text-white/40">
+                <div className="text-[10px] text-[color:color-mix(in_srgb,var(--nt-text)_40%,transparent)]">
                   Stop: ${slPrice} | Current: $
                   {activeTab === "buy" ? askPrice : bidPrice}
                 </div>
@@ -888,7 +888,7 @@ export default function BuySell({
             )}
           </div>
 
-          <div className="bg-[#0f171b] border border-[#263136] rounded-md p-2">
+          <div className="bg-[var(--nt-surface)] border border-[var(--nt-border)] rounded-md p-2">
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-1">
                 <svg
@@ -901,11 +901,11 @@ export default function BuySell({
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="text-white/60"
+                  className="text-[color:color-mix(in_srgb,var(--nt-text)_60%,transparent)]"
                 >
                   <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                 </svg>
-                <label htmlFor="tsl-toggle" className="text-xs text-white/60">
+                <label htmlFor="tsl-toggle" className="text-xs text-[color:color-mix(in_srgb,var(--nt-text)_60%,transparent)]">
                   Trailing Stop Loss
                 </label>
                 <span className="bg-yellow-500/10 text-yellow-400 text-[10px] px-1.5 py-0.5 rounded">
@@ -921,14 +921,14 @@ export default function BuySell({
                     checked={tslEnabled}
                     onChange={(e) => setTslEnabled(e.target.checked)}
                   />
-                  <div className="w-9 h-5 bg-[#1c2a31] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white/30 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-yellow-500/30"></div>
+                  <div className="w-9 h-5 bg-[var(--nt-surface2)] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-[var(--nt-border)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[color:color-mix(in_srgb,var(--nt-surface2)_30%,transparent)] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-yellow-500/30"></div>
                 </label>
               </div>
             </div>
 
             <div className="relative">
               <div className="absolute left-0 top-0 h-full px-2 flex items-center">
-                <span className="text-xs text-white/50">$</span>
+                <span className="text-xs text-[color:color-mix(in_srgb,var(--nt-text)_50%,transparent)]">$</span>
               </div>
               <input
                 id="tsl-distance"
@@ -940,7 +940,7 @@ export default function BuySell({
                 value={tslDistance}
                 onChange={(e) => setTslDistance(e.target.value)}
                 className={`
-                  w-full rounded-md border border-[#263136] bg-[#141D22] pl-6 pr-2 py-1.5 text-xs outline-none
+                  w-full rounded-md border border-[var(--nt-border)] bg-[var(--nt-surface2)] pl-6 pr-2 py-1.5 text-xs outline-none
                   ${
                     tslEnabled
                       ? "focus:border-yellow-500 transition-colors"
@@ -952,7 +952,7 @@ export default function BuySell({
 
             {tslEnabled && (
               <div className="mt-1.5 space-y-1">
-                <div className="text-[10px] text-white/40">
+                <div className="text-[10px] text-[color:color-mix(in_srgb,var(--nt-text)_40%,transparent)]">
                   Locks in profit as price moves in your favor. Stop loss moves with price but never reverses.
                 </div>
                 {(() => {
@@ -970,7 +970,7 @@ export default function BuySell({
                   );
                 })()}
                 <div className="flex items-center justify-between">
-                  <div className="text-[10px] text-white/50">
+                  <div className="text-[10px] text-[color:color-mix(in_srgb,var(--nt-text)_50%,transparent)]">
                     Distance from peak:
                   </div>
                   {(() => {
@@ -1018,20 +1018,20 @@ export default function BuySell({
           </div>
         )}
 
-        <div className="mt-3 rounded-md border border-[#1e3a5f]/40 bg-[#0d2137]/40 p-2">
+        <div className="mt-3 rounded-md border border-[color:color-mix(in_srgb,var(--nt-border)_40%,transparent)] bg-[color:color-mix(in_srgb,var(--nt-surface2)_40%,transparent)] p-2">
           <div className="space-y-1">
             <div className="flex items-center justify-between text-[10px]">
-              <span className="text-white/50">Margin:</span>
-              <span className="text-white/80">${Number(margin).toFixed(2)}</span>
+              <span className="text-[color:color-mix(in_srgb,var(--nt-text)_50%,transparent)]">Margin:</span>
+              <span className="text-[color:color-mix(in_srgb,var(--nt-text)_80%,transparent)]">${Number(margin).toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between text-[10px]">
-              <span className="text-white/50">Fee (0.5%):</span>
+              <span className="text-[color:color-mix(in_srgb,var(--nt-text)_50%,transparent)]">Fee (0.5%):</span>
               <span className="text-orange-400">${(Number(margin) * 0.005).toFixed(2)}</span>
             </div>
-            <div className="h-px bg-[#1e3a5f]/30 my-1"></div>
+            <div className="h-px bg-[color:color-mix(in_srgb,var(--nt-border)_30%,transparent)] my-1"></div>
             <div className="flex items-center justify-between text-[11px] font-semibold">
-              <span className="text-white/70">Total Cost:</span>
-              <span className="text-white">${(Number(margin) + Number(margin) * 0.005).toFixed(2)}</span>
+              <span className="text-[color:color-mix(in_srgb,var(--nt-text)_70%,transparent)]">Total Cost:</span>
+              <span className="text-[var(--nt-text)]">${(Number(margin) + Number(margin) * 0.005).toFixed(2)}</span>
             </div>
           </div>
         </div>
@@ -1039,8 +1039,8 @@ export default function BuySell({
         <button
           className={`mt-3 w-full rounded-md px-3 py-3 text-xs font-semibold transition-all flex items-center justify-center gap-2 relative overflow-hidden ${
             activeTab === "buy"
-              ? "bg-gradient-to-r from-[#0EA5E9]/90 to-[#0EA5E9] hover:from-[#0EA5E9] hover:to-[#0EA5E9]/90 text-white"
-              : "bg-gradient-to-r from-[#EB483F]/90 to-[#EB483F] hover:from-[#EB483F] hover:to-[#EB483F]/90 text-white"
+              ? "bg-gradient-to-r from-[color:color-mix(in_srgb,var(--nt-accent)_90%,transparent)] to-[var(--nt-accent)] hover:from-[var(--nt-accent)] hover:to-[color:color-mix(in_srgb,var(--nt-accent)_90%,transparent)] text-[var(--nt-text)]"
+              : "bg-gradient-to-r from-[#EB483F]/90 to-[#EB483F] hover:from-[#EB483F] hover:to-[#EB483F]/90 text-[var(--nt-text)]"
           } ${isSubmitting ? "opacity-80 cursor-not-allowed" : ""}`}
           aria-label={
             activeTab === "buy" ? "Place buy order" : "Place sell order"
@@ -1112,7 +1112,7 @@ export default function BuySell({
           )}
         </button>
 
-        <div className="mt-2 p-1.5 rounded bg-[#0f171b]/80 border border-[#263136]">
+        <div className="mt-2 p-1.5 rounded bg-[color:color-mix(in_srgb,var(--nt-surface)_80%,transparent)] border border-[var(--nt-border)]">
           <div className="flex items-center gap-1.5 justify-center">
             {orderType === "market" ? (
               <svg
@@ -1125,7 +1125,7 @@ export default function BuySell({
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="text-white/40"
+                className="text-[color:color-mix(in_srgb,var(--nt-text)_40%,transparent)]"
               >
                 <circle cx="12" cy="12" r="10"></circle>
                 <polyline points="12 6 12 12 16 14"></polyline>
@@ -1141,14 +1141,14 @@ export default function BuySell({
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="text-white/40"
+                className="text-[color:color-mix(in_srgb,var(--nt-text)_40%,transparent)]"
               >
                 <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
                 <line x1="8" y1="21" x2="16" y2="21"></line>
                 <line x1="12" y1="17" x2="12" y2="21"></line>
               </svg>
             )}
-            <p className="text-center text-[10px] text-white/40">
+            <p className="text-center text-[10px] text-[color:color-mix(in_srgb,var(--nt-text)_40%,transparent)]">
               {orderType === "market"
                 ? "Instant execution at market price."
                 : "Order will trigger when price meets condition."}
