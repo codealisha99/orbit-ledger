@@ -11,6 +11,7 @@ import { startPositionMonitor, stopPositionMonitor } from "./services/positionMo
 import { startSnapshotService, stopSnapshotService } from "./services/snapshotService";
 import { restoreState } from "./services/stateRestoration";
 import { initPlatformProfit } from "./services/platformProfit";
+import { startMarketCandleSync, stopMarketCandleSync } from "./services/marketCandleSync";
 import { logOAuthStatus } from "./config/oauth";
 import { closeRateLimitStore, connectRateLimitStore, globalRateLimit } from "./middleware/rateLimit";
 
@@ -90,6 +91,7 @@ async function main() {
     await initPlatformProfit();
 
     await initPriceMonitor();
+    startMarketCandleSync();
     startPositionMonitor();
     await initOrderBroadcast();
 
@@ -112,6 +114,7 @@ async function shutdown() {
   console.log("\n[SERVER] Shutting down gracefully...");
   try {
     stopSnapshotService();
+    stopMarketCandleSync();
     stopPositionMonitor();
     await stopPriceMonitor();
     await stopOrderBroadcast();

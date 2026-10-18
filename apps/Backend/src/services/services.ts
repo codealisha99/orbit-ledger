@@ -21,6 +21,10 @@ export async function getCandelFromDb(
     "1w":  { minutes: 10080, pgInterval: "1 week" },
   } as const;
 
+  if (!(interval in IntervalConfig)) {
+    throw new Error(`Unsupported candle interval: ${interval}`);
+  }
+
   if (!symbol || symbol.trim() === "") {
     throw new Error("Symbol Parameter is not Thier !");
   }
@@ -51,10 +55,40 @@ export async function getCandelFromDb(
     throw new Error(`Invalid symbol. Supported: BTC, ETH, SOL for Now`);
   }
 
+  const historyStartDate = new Date(startTime * 1000);
+  const historyEndDate = new Date(endTime * 1000);
+
+  if (interval === "1d" || interval === "1w") {
+    const results = await prisma.$queryRawUnsafe<Array<{
+      time: Date;
+      open: bigint;
+      high: bigint;
+      low: bigint;
+      close: bigint;
+      volume: string;
+    }>>(`
+      SELECT "timestamp" AS time, open, high, low, close, "baseVolume" AS volume
+      FROM "market_candles"
+      WHERE symbol = $1 AND interval = $2
+        AND "timestamp" >= $3 AND "timestamp" <= $4
+      ORDER BY "timestamp" ASC
+      LIMIT 10000
+    `, symbol, interval, historyStartDate, historyEndDate);
+
+    return results.map((row) => ({
+      time: Math.floor(new Date(row.time).getTime() / 1000),
+      open: fromInternalPrice(Number(row.open)),
+      high: fromInternalPrice(Number(row.high)),
+      low: fromInternalPrice(Number(row.low)),
+      close: fromInternalPrice(Number(row.close)),
+      volume: String(row.volume),
+    }));
+  }
+
   const rangeDuration = (endTime - startTime) / 60; // startTime/endTime are in seconds
   const expectedCandles = rangeDuration / IntervalConfig[interval].minutes;
-  if (expectedCandles > 1000) {
-    startTime = endTime - 1000 * IntervalConfig[interval].minutes * 60;
+  if (expectedCandles > 10000) {
+    startTime = endTime - 10000 * IntervalConfig[interval].minutes * 60;
   }
   const startDate = new Date(startTime * 1000);
   const endDate = new Date(endTime * 1000);
@@ -76,7 +110,7 @@ export async function getCandelFromDb(
         AND timestamp <= $3
       GROUP BY time_bucket(INTERVAL '${pgInterval}', timestamp)
       ORDER BY time ASC
-      LIMIT 1000
+      LIMIT 10000
     `, dbSymbol, startDate, endDate);
   } catch (error) {
     // Fallback for plain PostgreSQL (e.g., Neon) where time_bucket extension is unavailable.
@@ -94,7 +128,7 @@ export async function getCandelFromDb(
         AND timestamp <= $3
       GROUP BY date_bin(INTERVAL '${pgInterval}', timestamp, TIMESTAMP '2001-01-01')
       ORDER BY time ASC
-      LIMIT 1000
+      LIMIT 10000
     `, dbSymbol, startDate, endDate);
 
     console.warn("[CANDLES] Using date_bin fallback query:", error instanceof Error ? error.message : error);

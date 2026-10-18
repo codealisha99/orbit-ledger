@@ -1,161 +1,176 @@
-import axios from 'axios';
-import { prisma } from '../packages/database/src/index';
+import { prisma } from "../packages/database/src/index";
+import { toInternalPrice } from "../packages/shared/src/utils";
 
+const BASE_URL = "https://data-api.binance.vision/api/v3/klines";
+const START_TIME = Date.UTC(2019, 0, 1);
+const BATCH_LIMIT = 1000;
+const SYMBOLS = ["BTC", "ETH", "SOL"] as const;
+const INTERVALS = ["1d", "1w"] as const;
 
-interface BinanceTrade {
-  id: number;
-  price: string;
-  qty: string;
-  quoteQty: string;
-  time: number;
-  isBuyerMaker: boolean;
-  isBestMatch: boolean;
-}
+type Symbol = (typeof SYMBOLS)[number];
+type Interval = (typeof INTERVALS)[number];
+type BinanceKline = [
+  number, string, string, string, string, string, number, string, number,
+  string, string, string,
+];
 
-const SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'] as const;
-const BATCH_SIZE = 1000; // Binance API limit per request
-const TOTAL_TRADES_PER_SYMBOL = 10000; // Total trades to fetch per symbol
-
-async function fetchBinanceTrades(
-  symbol: string,
-  fromId?: number
-): Promise<BinanceTrade[]> {
-  try {
-    const url = 'https://api.binance.com/api/v3/historicalTrades';
-    const params: any = {
-      symbol,
-      limit: BATCH_SIZE,
-    };
-    
-    if (fromId) {
-      params.fromId = fromId;
-    }
-
-    const response = await axios.get(url, { params });
-    return response.data;
-  } catch (error: unknown) {
-    if (axios.isAxiosError(error)) {
-      console.error(`Binance API Error for ${symbol}:`, error.response?.data || error.message);
-    } else {
-      console.error(`Error fetching trades for ${symbol}:`, error);
-    }
-    throw error;
+function currentBucketStart(interval: Interval, now: Date): Date {
+  if (interval === "1d") {
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   }
+  const daysSinceMonday = (now.getUTCDay() + 6) % 7;
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysSinceMonday));
 }
 
-function toInternalPrice(price: string): bigint {
-  const numPrice = parseFloat(price);
-  return BigInt(Math.round(numPrice * 10000));
-}
+async function fetchKlines(
+  pair: string,
+  interval: Interval,
+  startTime: number,
+  endTime: number,
+): Promise<BinanceKline[]> {
+  const url = new URL(BASE_URL);
+  url.search = new URLSearchParams({
+    symbol: pair,
+    interval,
+    startTime: String(startTime),
+    endTime: String(endTime),
+    limit: String(BATCH_LIMIT),
+  }).toString();
 
-async function seedSymbol(symbol: string): Promise<void> {
-  console.log(`\nStarting to seed ${symbol}...`);
-  
-  let totalInserted = 0;
-  let lastTradeId: number | undefined = undefined;
-  let batchCount = 0;
-  const maxBatches = Math.ceil(TOTAL_TRADES_PER_SYMBOL / BATCH_SIZE);
-
-  while (batchCount < maxBatches) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
     try {
-      console.log(`  Fetching batch ${batchCount + 1}/${maxBatches} for ${symbol}...`);
-      
-      const trades = await fetchBinanceTrades(symbol, lastTradeId);
-      
-      if (trades.length === 0) {
-        console.log(` No more trades available for ${symbol}`);
-        break;
+      const response = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+      if (response.status === 429 || response.status >= 500) {
+        if (attempt === 4) {
+          throw new Error(`Binance request failed after retries (${response.status}): ${await response.text()}`);
+        }
+        const waitMs = Math.min(1000 * 2 ** attempt, 30_000);
+        console.warn(`[history] Binance returned ${response.status}; retrying in ${waitMs / 1000}s`);
+        await Bun.sleep(waitMs);
+        continue;
       }
-
-      const dbTrades = trades.map(trade => ({
-        tradeId: BigInt(trade.id),
-        symbol: symbol,
-        price: toInternalPrice(trade.price),
-        quantity: trade.qty,
-        timestamp: new Date(trade.time),
-      }));
-
-      const result = await prisma.trade.createMany({
-        data: dbTrades,
-        skipDuplicates: true,
-      });
-
-      totalInserted += result.count;
-      lastTradeId = trades[trades.length - 1].id + 1;
-      batchCount++;
-
-      console.log(` Inserted ${result.count} trades (Total: ${totalInserted})`);
-
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-    } catch (error: unknown) {
-      console.error(`Error seeding batch ${batchCount + 1} for ${symbol}:`, error);
-      
-      if (axios.isAxiosError(error) && error.response?.status === 429) {
-        console.log(`Rate limited. Waiting 60 seconds...`);
-        await new Promise(resolve => setTimeout(resolve, 60000));
-        continue; // Retry the same batch
+      if (!response.ok) {
+        throw new Error(`Binance request failed (${response.status}): ${await response.text()}`);
       }
-      
-      batchCount++;
+      return await response.json() as BinanceKline[];
+    } catch (error) {
+      if (attempt === 4) throw error;
+      const waitMs = Math.min(1000 * 2 ** attempt, 30_000);
+      console.warn(`[history] Request failed; retrying in ${waitMs / 1000}s:`, error);
+      await Bun.sleep(waitMs);
     }
   }
-
-  console.log(`Completed seeding ${symbol}: ${totalInserted} trades inserted\n`);
+  return [];
 }
 
-async function seedHistoricalData(): Promise<void> {
-  console.log(' Starting Historical Data Seeding...\n');
-  console.log(`Symbols to seed: ${SYMBOLS.join(', ')}`);
-  console.log(`Target trades per symbol: ${TOTAL_TRADES_PER_SYMBOL}\n`);
+function toCandleData(symbol: Symbol, interval: Interval, rows: BinanceKline[]) {
+  return rows.map((row) => ({
+    symbol,
+    interval,
+    timestamp: new Date(row[0]),
+    open: BigInt(toInternalPrice(Number(row[1]))),
+    high: BigInt(toInternalPrice(Number(row[2]))),
+    low: BigInt(toInternalPrice(Number(row[3]))),
+    close: BigInt(toInternalPrice(Number(row[4]))),
+    baseVolume: row[5],
+    quoteVolume: row[7],
+    tradeCount: row[8],
+  }));
+}
 
-  const startTime = Date.now();
+async function saveCandles(symbol: Symbol, interval: Interval, rows: BinanceKline[]) {
+  if (rows.length === 0) return 0;
 
-  try {
-    for (const symbol of SYMBOLS) {
-      await seedSymbol(symbol);
-    }
+  const candles = toCandleData(symbol, interval, rows);
+  const currentStart = currentBucketStart(interval, new Date());
+  const completed = candles.filter((candle) => candle.timestamp < currentStart);
+  const current = candles.filter((candle) => candle.timestamp >= currentStart);
 
-    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-    console.log(`\ Seeding completed successfully in ${duration} seconds!`);
-    
-    console.log('\ Database Summary:');
-    const summary = await prisma.$queryRaw<Array<{
-      symbol: string;
-      count: bigint;
-      earliest: Date;
-      latest: Date;
-    }>>`
-      SELECT 
-        symbol,
-        COUNT(*) as count,
-        MIN(timestamp) as earliest,
-        MAX(timestamp) as latest
-      FROM "Trade"
-      GROUP BY symbol
-      ORDER BY symbol
-    `;
-    
-    summary.forEach((row: { symbol: string; count: bigint; earliest: Date; latest: Date }) => {
-      console.log(`  ${row.symbol}: ${row.count.toString()} trades`);
-      console.log(`    Earliest: ${row.earliest.toISOString()}`);
-      console.log(`    Latest: ${row.latest.toISOString()}`);
+  let inserted = 0;
+  for (let offset = 0; offset < completed.length; offset += BATCH_LIMIT) {
+    const result = await prisma.marketCandle.createMany({
+      data: completed.slice(offset, offset + BATCH_LIMIT),
+      skipDuplicates: true,
     });
+    inserted += result.count;
+  }
 
-  } catch (error) {
-    console.error('\ Seeding failed:', error);
-    throw error;
-  } finally {
-    await prisma.$disconnect();
+  // The active daily/weekly bar changes throughout the period, so refresh it
+  // on reruns instead of leaving the first fetched version frozen in storage.
+  for (const candle of current) {
+    await prisma.marketCandle.upsert({
+      where: {
+        symbol_interval_timestamp: {
+          symbol,
+          interval,
+          timestamp: candle.timestamp,
+        },
+      },
+      create: candle,
+      update: candle,
+    });
+    inserted += 1;
+  }
+  return inserted;
+}
+
+async function backfill(symbol: Symbol, interval: Interval) {
+  const pair = `${symbol}USDT`;
+  let startTime = START_TIME;
+  let totalSaved = 0;
+  let pages = 0;
+  const endTime = Date.now();
+
+  while (startTime < endTime) {
+    const rows = await fetchKlines(pair, interval, startTime, endTime);
+    if (rows.length === 0) break;
+
+    totalSaved += await saveCandles(symbol, interval, rows);
+    pages += 1;
+    const nextStart = rows[rows.length - 1][0] + 1;
+    if (nextStart <= startTime) throw new Error(`Binance returned a non-advancing ${interval} page for ${pair}`);
+    startTime = nextStart;
+    console.log(`[history] ${pair} ${interval}: page ${pages}, ${rows.length} candles (${totalSaved} new or refreshed)`);
+    if (rows.length < BATCH_LIMIT) break;
+    await Bun.sleep(150);
+  }
+
+  console.log(`[history] Finished ${pair} ${interval}; saved ${totalSaved} candles`);
+}
+
+async function main() {
+  console.log("Backfilling Binance daily and weekly candles from 2019-01-01.");
+  console.log("SOL history begins when Binance first listed SOLUSDT; no earlier spot candles exist.");
+  for (const symbol of SYMBOLS) {
+    for (const interval of INTERVALS) {
+      await backfill(symbol, interval);
+    }
+  }
+
+  const summary = await prisma.$queryRaw<Array<{
+    symbol: string;
+    interval: string;
+    count: bigint;
+    earliest: Date;
+    latest: Date;
+  }>>`
+    SELECT symbol, interval, COUNT(*) AS count,
+           MIN(timestamp) AS earliest, MAX(timestamp) AS latest
+    FROM market_candles
+    GROUP BY symbol, interval
+    ORDER BY symbol, interval
+  `;
+
+  for (const row of summary) {
+    console.log(`[history] ${row.symbol} ${row.interval}: ${row.count} bars, ${row.earliest.toISOString()} → ${row.latest.toISOString()}`);
   }
 }
 
-seedHistoricalData()
-  .then(() => {
-    console.log('\Seeder script completed successfully');
-    process.exit(0);
-  })
+main()
   .catch((error) => {
-    console.error('\ Seeder script failed:', error);
-    process.exit(1);
+    console.error("Historical candle backfill failed:", error);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
   });

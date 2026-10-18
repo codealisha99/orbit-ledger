@@ -22,6 +22,24 @@ model Trade {
   @@index([symbol, timestamp]) // for quick indexing and finding
 }
 
+// Historical Binance OHLCV bars used by long-range charts. Kept separate from
+// Trade so years of candles don't inflate the live trade tape.
+model MarketCandle {
+  symbol       String   @db.VarChar(12)
+  interval     String   @db.VarChar(2)
+  timestamp    DateTime @db.Timestamptz(3)
+  open         BigInt
+  high         BigInt
+  low          BigInt
+  close        BigInt
+  baseVolume   Decimal  @db.Decimal(38, 12)
+  quoteVolume  Decimal  @db.Decimal(38, 12)
+  tradeCount   Int
+
+  @@id([symbol, interval, timestamp])
+  @@map("market_candles")
+}
+
 // User accounts with authentication and balances
 model User {
   userId        String   @id

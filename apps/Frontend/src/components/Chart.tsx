@@ -4,6 +4,7 @@ import {
   createChart,
   ColorType,
   CandlestickSeries,
+  LineSeries,
   type IChartApi,
   type CandlestickData,
   type CandlestickSeriesOptions,
@@ -28,6 +29,32 @@ import {
 import type { Trade } from "./AskBidsTable";
 import { toDisplayPrice } from "../utils/utils";
 
+type HistoryRange = "1D" | "3D" | "1W" | "1M" | "3M" | "1Y" | "ALL";
+
+const HISTORY_RANGES: Record<Duration, HistoryRange[]> = {
+  "1m": ["1D", "3D"],
+  "5m": ["1D", "1W", "1M"],
+  "15m": ["1W", "1M", "3M"],
+  "1h": ["1W", "1M", "1Y"],
+  "4h": ["1M", "3M", "1Y"],
+  "1d": ["1M", "3M", "1Y", "ALL"],
+  "1w": ["1M", "3M", "1Y", "ALL"],
+};
+
+function getHistoryStartTime(range: HistoryRange): number {
+  const now = Date.now();
+  if (range === "ALL") return Math.floor(Date.UTC(2019, 0, 1) / 1000);
+  const durationMs: Record<Exclude<HistoryRange, "ALL">, number> = {
+    "1D": 24 * 60 * 60 * 1000,
+    "3D": 3 * 24 * 60 * 60 * 1000,
+    "1W": 7 * 24 * 60 * 60 * 1000,
+    "1M": 30 * 24 * 60 * 60 * 1000,
+    "3M": 90 * 24 * 60 * 60 * 1000,
+    "1Y": 365 * 24 * 60 * 60 * 1000,
+  };
+  return Math.floor((now - durationMs[range]) / 1000);
+}
+
 export default function ChartComponent({
   duration,
   symbol,
@@ -45,6 +72,13 @@ export default function ChartComponent({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [followMode, setFollowMode] = useState<boolean>(true);
+  const [historyRange, setHistoryRange] = useState<HistoryRange>("1D");
+  const [chartType, setChartType] = useState<"candles" | "line">("candles");
+  const selectedHistoryRange = HISTORY_RANGES[duration].includes(historyRange)
+    ? historyRange
+    : duration === Duration.candles_1d || duration === Duration.candles_1w
+      ? "ALL"
+      : HISTORY_RANGES[duration][0];
   const [theme, setTheme] = useState("dark");
   const tooltipTimeoutRef = useRef<number | null>(null);
   const userScrolledRef = useRef<boolean>(false);
@@ -92,6 +126,7 @@ export default function ChartComponent({
       CandlestickSeriesOptions,
       DeepPartial<CandlestickStyleOptions & SeriesOptionsCommon>
     > | null = null;
+    let lineSeries: ISeriesApi<"Line"> | null = null;
     let chart: IChartApi | null = null;
     let unwatch: (() => void) | null = null;
     let isCleanedUp = false;
@@ -160,7 +195,7 @@ export default function ChartComponent({
           },
         });
 
-        candlestickSeries = chart.addSeries(CandlestickSeries, {
+        if (chartType === "candles") candlestickSeries = chart.addSeries(CandlestickSeries, {
           upColor: accent,
           downColor: "#EB483F",
           borderVisible: false,
@@ -171,6 +206,17 @@ export default function ChartComponent({
           priceLineColor: accent,
           priceLineStyle: 2,
           priceLineWidth: 1,
+        });
+        else lineSeries = chart.addSeries(LineSeries, {
+          color: accent,
+          lineWidth: 2,
+          lastValueVisible: true,
+          priceLineVisible: true,
+          priceLineColor: accent,
+          priceLineStyle: 2,
+          priceLineWidth: 1,
+          crosshairMarkerVisible: true,
+          crosshairMarkerRadius: 4,
         });
 
         const tickWrapper = (trade: Trade) => {
@@ -201,23 +247,24 @@ export default function ChartComponent({
 
           const candle = processRealupdate(tick, duration);
 
-          if (candle && candlestickSeries) {
+          if (candle && (candlestickSeries || lineSeries)) {
             const isNewCandle = Number(candle.time) > lastCandleTimeRef.current;
             if (isNewCandle) {
               lastCandleTimeRef.current = Number(candle.time);
               latestLogicalIndexRef.current += 1;
             }
-            candlestickSeries.update(candle);
+            if (candlestickSeries) candlestickSeries.update(candle);
+            if (lineSeries) lineSeries.update({ time: candle.time, value: candle.close });
             if (!isHoveringChartRef.current) setHoveredCandle(candle);
             if (isNewCandle && followModeRef.current && !userScrolledRef.current && chart) {
               chart.timeScale().scrollToRealTime();
             }
           } else {
-            console.warn(`[CHART] Failed to update candle - candle:`, candle, "series:", !!candlestickSeries);
+            console.warn(`[CHART] Failed to update candle - candle:`, candle, "series:", !!(candlestickSeries || lineSeries));
           }
         };
 
-        const rawData = await getChartData(symbol, duration);
+        const rawData = await getChartData(symbol, duration, getHistoryStartTime(selectedHistoryRange)) as CandlestickData<Time>[];
         if (isCleanedUp) return;
 
         if (candlestickSeries) {
@@ -228,12 +275,22 @@ export default function ChartComponent({
           latestLogicalIndexRef.current = Math.max(0, rawData.length - 1);
           lastCandleTimeRef.current = latest ? Number(latest.time) : 0;
         }
+        if (lineSeries) {
+          lineSeries.setData(rawData.map(({ time, close }) => ({ time, value: close })));
+          const latest = rawData[rawData.length - 1];
+          setHoveredCandle(latest ?? null);
+          latestLogicalIndexRef.current = Math.max(0, rawData.length - 1);
+          lastCandleTimeRef.current = latest ? Number(latest.time) : 0;
+        }
         if (chart) {
           const dataLength = rawData.length;
-          const visibleCandles = duration === Duration.candles_1w ? 40 : duration === Duration.candles_1d ? 45 : 75;
+          const normalVisibleCandles = duration === Duration.candles_1w ? 40 : duration === Duration.candles_1d ? 45 : 75;
+          const visibleCandles = selectedHistoryRange === "ALL" && dataLength >= 20
+            ? dataLength + 6
+            : normalVisibleCandles;
           fitChartToDataRef.current = () => {
-            if (!chart || !candlestickSeries) return;
-            const seriesLength = candlestickSeries.data().length;
+            if (!chart || (!candlestickSeries && !lineSeries)) return;
+            const seriesLength = (candlestickSeries ?? lineSeries)!.data().length;
             if (seriesLength < 20) {
               const rangeEnd = seriesLength + 6;
               chart.timeScale().setVisibleLogicalRange({ from: rangeEnd - visibleCandles, to: rangeEnd });
@@ -257,12 +314,21 @@ export default function ChartComponent({
             chart.timeScale().fitContent();
           }
 
-          if (candlestickSeries) {
+          if (candlestickSeries || lineSeries) {
             chart.subscribeCrosshairMove((param) => {
               isHoveringChartRef.current = param.time !== undefined;
-              const data = param.seriesData.get(candlestickSeries!);
-              if (data && "open" in data) setHoveredCandle(data as CandlestickData<Time>);
-              else setHoveredCandle((candlestickSeries!.data().at(-1) as CandlestickData<Time> | undefined) ?? null);
+              if (candlestickSeries) {
+                const data = param.seriesData.get(candlestickSeries);
+                if (data && "open" in data) setHoveredCandle(data as CandlestickData<Time>);
+                else setHoveredCandle((candlestickSeries.data().at(-1) as CandlestickData<Time> | undefined) ?? null);
+              } else if (lineSeries) {
+                const lineData = param.seriesData.get(lineSeries);
+                const lineValue = lineData && "value" in lineData ? lineData.value : undefined;
+                if (lineValue !== undefined) {
+                  const latest = rawData[rawData.length - 1];
+                  if (latest) setHoveredCandle({ ...latest, close: lineValue });
+                } else setHoveredCandle(rawData[rawData.length - 1] ?? null);
+              }
             });
           }
         }
@@ -315,8 +381,9 @@ export default function ChartComponent({
         clearTimeout(tooltipTimeoutRef.current);
       }
       candlestickSeries = null;
+      lineSeries = null;
     };
-  }, [duration, symbol, onPriceUpdate, theme]);
+  }, [duration, selectedHistoryRange, symbol, onPriceUpdate, theme, chartType]);
 
   return (
     <div className="text-[var(--nt-text)] h-full w-full relative">
@@ -339,9 +406,30 @@ export default function ChartComponent({
               {duration === Duration.candles_1w && "1 week"}
             </div>
           </div>
-          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-x-4 gap-y-1 px-2 font-mono text-[11px] sm:text-xs" aria-label="Selected candle values">
-            {([['O', hoveredCandle?.open], ['H', hoveredCandle?.high], ['L', hoveredCandle?.low], ['C', hoveredCandle?.close]] as const).map(([label, value]) => (
+          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-x-4 gap-y-1 px-2 font-mono text-[11px] sm:text-xs" aria-label={chartType === "candles" ? "Selected candle values" : "Selected price"}>
+            {(chartType === "candles" ? [['O', hoveredCandle?.open], ['H', hoveredCandle?.high], ['L', hoveredCandle?.low], ['C', hoveredCandle?.close]] as const : [['Price', hoveredCandle?.close]] as const).map(([label, value]) => (
               <span key={label} className="whitespace-nowrap text-[var(--nt-muted)]">{label} <strong className="font-medium text-[var(--nt-text)]">{value == null ? "—" : `$${toDisplayPrice(value)}`}</strong></span>
+            ))}
+          </div>
+          <div className="flex items-center gap-0.5 rounded-lg bg-[var(--nt-surface2)] p-1" role="group" aria-label="Chart style">
+            {([['candles', 'Candles'], ['line', 'Line']] as const).map(([value, label]) => (
+              <button key={value} type="button" aria-pressed={chartType === value} onClick={() => setChartType(value)} className={`min-h-9 rounded-md px-2.5 text-[10px] font-medium transition-colors sm:text-xs ${chartType === value ? "bg-[var(--nt-bg)] text-[var(--nt-text)] shadow-sm" : "text-[var(--nt-muted)] hover:text-[var(--nt-text)]"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-0.5 rounded-lg bg-[var(--nt-surface2)] p-1" role="group" aria-label="Chart history range">
+            {HISTORY_RANGES[duration].map((range) => (
+              <button
+                key={range}
+                type="button"
+                aria-pressed={selectedHistoryRange === range}
+                title={range === "ALL" ? "Show all stored history since 2019" : `Show ${range} of history`}
+                onClick={() => setHistoryRange(range)}
+                className={`min-h-9 rounded-md px-2 text-[10px] font-medium transition-colors sm:px-2.5 sm:text-xs ${selectedHistoryRange === range ? "bg-[var(--nt-bg)] text-[var(--nt-text)] shadow-sm" : "text-[var(--nt-muted)] hover:text-[var(--nt-text)]"}`}
+              >
+                {range}
+              </button>
             ))}
           </div>
           <div className="flex items-center gap-2">

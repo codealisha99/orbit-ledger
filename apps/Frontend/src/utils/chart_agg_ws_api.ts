@@ -79,8 +79,8 @@ export function initLastCandle(
   lastCandles[k] = data.length > 0 ? data[data.length - 1] : null;
 }
 
-export async function getChartData(symbol: SYMBOL, duration: Duration) {
-  const response = await getKlineData(symbol, duration);
+export async function getChartData(symbol: SYMBOL, duration: Duration, startTime?: number) {
+  const response = await getKlineData(symbol, duration, startTime);
   initLastCandle(symbol, duration, response.candles);
   return response.candles;
 }
