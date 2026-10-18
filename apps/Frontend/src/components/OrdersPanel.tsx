@@ -268,21 +268,16 @@ export default function OrdersPanel({ onRefreshReady }: { onRefreshReady?: (refr
                 <table className="w-full text-sm">
                   <thead className="sticky top-0 bg-[color:color-mix(in_srgb,var(--nt-surface)_80%,transparent)] backdrop-blur-sm z-10">
                     <tr className="text-xs text-[var(--nt-muted)] border-b border-[color:color-mix(in_srgb,var(--nt-border)_40%,transparent)]">
-                      <th className="py-3 px-3 text-left font-medium w-12">#</th>
-                      <th className="py-3 px-3 text-left font-medium">Symbol</th>
-                      <th className="py-3 px-3 text-right font-medium">Type</th>
+                      <th className="py-3 px-3 text-left font-medium">Position</th>
                       <th className="py-3 px-3 text-right font-medium">Margin</th>
-                      <th className="py-3 px-3 text-right font-medium">Leverage</th>
-                      <th className="py-3 px-3 text-right font-medium">Open Price</th>
-                      <th className="py-3 px-3 text-right font-medium">Take Profit</th>
-                      <th className="py-3 px-3 text-right font-medium">Stop Loss</th>
-                      <th className="py-3 px-3 text-right font-medium">Liquidation</th>
-                      <th className="py-3 px-3 text-right font-medium">Unreal. P&L</th>
-                      <th className="py-3 px-3 text-right font-medium">Action</th>
+                      <th className="py-3 px-3 text-right font-medium">Entry</th>
+                      <th className="py-3 px-3 text-right font-medium">Risk levels</th>
+                      <th className="py-3 px-3 text-right font-medium">Unrealized P&amp;L</th>
+                      <th className="py-3 px-3 text-right font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {openWithPnl.map((order, index) => {
+                    {openWithPnl.map((order) => {
                       const { tpStatus, slStatus } = getTpSlStatus(order);
                       const sym = (order.asset || "BTC").replace("USDT", "");
                       const p = latestPrices[sym as keyof LivePrices];
@@ -318,120 +313,29 @@ export default function OrdersPanel({ onRefreshReady }: { onRefreshReady?: (refr
                               : ""
                           }`}
                         >
-                          <td className="py-3 px-3 text-left text-[var(--nt-muted)] font-medium">
-                            {index + 1}
-                          </td>
                           <td className="py-3 px-3 font-medium text-[var(--nt-text)]">
-                            {order.asset || "BTC"}
-                            <span className="text-[var(--nt-muted)] text-xs">/USDT</span>
-                          </td>
-                          <td
-                            className={`py-3 px-3 text-right font-medium ${
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold">{order.asset || "BTC"}<span className="text-[var(--nt-muted)] text-xs">/USDT</span></span>
+                              <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
                               order.type === "buy"
-                                ? "text-[var(--nt-accent)]"
-                                : "text-[#EB483F]"
-                            }`}
-                          >
-                            {order.type === "buy" ? "LONG" : "SHORT"}
+                                ? "bg-[color:color-mix(in_srgb,var(--nt-accent)_12%,transparent)] text-[var(--nt-accent)]"
+                                : "bg-red-500/10 text-red-400"
+                              }`}>{order.type === "buy" ? "LONG" : "SHORT"}</span>
+                            </div>
                           </td>
                           <td className="py-3 px-3 text-right text-[var(--nt-text)]">
-                            {toDisplayPriceUSD(order.margin)} USD
-                          </td>
-                          <td className="py-3 px-3 text-right text-[var(--nt-text)]">
-                            x{order.leverage}
+                            <div>{toDisplayPriceUSD(order.margin)} USD</div>
+                            <div className="text-xs text-[var(--nt-muted)]">{order.leverage}x leverage</div>
                           </td>
                           <td className="py-3 px-3 text-right text-[var(--nt-text)]">
                             ${toDisplayPrice(order.openPrice)}
                           </td>
                           <td className="py-3 px-3 text-right">
-                            {order.takeProfit ? (
-                              <div className="flex items-center justify-end gap-2">
-                                <span className="text-green-400 font-medium">
-                                  ${toDisplayPrice(order.takeProfit)}
-                                </span>
-                                {(() => {
-                                  const { tpStatus } = getTpSlStatus(order);
-                                  if (tpStatus === "hit") {
-                                    return (
-                                      <span className="text-green-500 text-xs">
-                                        ✓
-                                      </span>
-                                    );
-                                  } else if (tpStatus === "close") {
-                                    return (
-                                      <span className="text-yellow-500 text-xs animate-pulse">
-                                        !
-                                      </span>
-                                    );
-                                  }
-                                  return null;
-                                })()}
-                              </div>
-                            ) : (
-                              <span className="text-[var(--nt-muted)] text-xs">—</span>
-                            )}
-                          </td>
-                          <td className="py-3 px-3 text-right">
-                            {order.stopLoss ? (
-                              <div className="flex items-center justify-end gap-2">
-                                <span className="text-red-400 font-medium">
-                                  ${toDisplayPrice(order.stopLoss)}
-                                </span>
-                                {(() => {
-                                  const { slStatus } = getTpSlStatus(order);
-                                  if (slStatus === "hit") {
-                                    return (
-                                      <span className="text-red-500 text-xs">
-                                        ✓
-                                      </span>
-                                    );
-                                  } else if (slStatus === "close") {
-                                    return (
-                                      <span className="text-yellow-500 text-xs animate-pulse">
-                                        !
-                                      </span>
-                                    );
-                                  }
-                                  return null;
-                                })()}
-                              </div>
-                            ) : (
-                              <span className="text-[var(--nt-muted)] text-xs">—</span>
-                            )}
-                          </td>
-                          <td className="py-3 px-3 text-right">
-                            {order.liquidationPrice ? (
-                              <div className="flex items-center justify-end gap-2">
-                                <span className="text-orange-400 font-medium">
-                                  ${toDisplayPrice(order.liquidationPrice)}
-                                </span>
-                                {(() => {
-                                  const sym = (order.asset || "BTC").replace(
-                                    "USDT",
-                                    ""
-                                  );
-                                  const p =
-                                    latestPrices[sym as keyof LivePrices];
-                                  if (!p) return null;
-                                  const currentPrice =
-                                    order.type === "buy" ? p.bid : p.ask;
-                                  const distance =
-                                    Math.abs(
-                                      currentPrice - order.liquidationPrice
-                                    ) / order.liquidationPrice;
-                                  if (distance < 0.05) {
-                                    return (
-                                      <span className="text-red-500 text-xs animate-pulse">
-                                        !
-                                      </span>
-                                    );
-                                  }
-                                  return null;
-                                })()}
-                              </div>
-                            ) : (
-                              <span className="text-[var(--nt-muted)] text-xs">—</span>
-                            )}
+                            <div className="space-y-1 text-xs">
+                              <div><span className="text-[var(--nt-muted)]">TP </span><span className="text-green-400">{order.takeProfit ? `$${toDisplayPrice(order.takeProfit)}` : "—"}</span></div>
+                              <div><span className="text-[var(--nt-muted)]">SL </span><span className="text-red-400">{order.stopLoss ? `$${toDisplayPrice(order.stopLoss)}` : "—"}</span></div>
+                              <div><span className="text-[var(--nt-muted)]">Liq. </span><span className="text-orange-400">{order.liquidationPrice ? `$${toDisplayPrice(order.liquidationPrice)}` : "—"}</span></div>
+                            </div>
                           </td>
                           <td
                             className={`py-3 px-3 text-right font-medium ${
@@ -448,8 +352,8 @@ export default function OrdersPanel({ onRefreshReady }: { onRefreshReady?: (refr
                               <button
                                 onClick={() => closePosition(order.orderId)}
                                 disabled={isClosingPosition === order.orderId}
-                                title="Close 100%"
-                                className={`px-2 py-1 text-[var(--nt-text)] rounded text-xs font-medium transition-colors
+                                title="Close position"
+                                className={`min-h-10 px-3 py-2 text-[var(--nt-text)] rounded text-xs font-medium transition-colors
                                 ${
                                   isClosingPosition === order.orderId
                                     ? "bg-[var(--nt-border)] cursor-not-allowed"
@@ -463,21 +367,23 @@ export default function OrdersPanel({ onRefreshReady }: { onRefreshReady?: (refr
                               <button
                                 onClick={() => setShowPartialCloseModal(order.orderId)}
                                 disabled={isClosingPosition === order.orderId}
-                                title="Partial Close"
-                                className={`px-2 py-1 text-[var(--nt-text)] rounded text-xs font-medium transition-colors
+                                title="Partially close position"
+                                aria-label="Partially close position"
+                                className={`min-h-10 px-3 py-2 text-[var(--nt-text)] rounded text-xs font-medium transition-colors
                                 ${
                                   isClosingPosition === order.orderId
                                     ? "bg-[var(--nt-border)] cursor-not-allowed"
                                     : "bg-yellow-600 hover:bg-yellow-600/80"
                                 }`}
                               >
-                                Part
+                                Partial
                               </button>
                               <button
                                 onClick={() => setShowAddMarginModal(order.orderId)}
                                 disabled={isClosingPosition === order.orderId}
-                                title="Add Margin"
-                                className={`px-2 py-1 text-[var(--nt-text)] rounded text-xs font-medium transition-colors
+                                title="Add margin"
+                                aria-label="Add margin"
+                                className={`min-h-10 px-3 py-2 text-[var(--nt-text)] rounded text-xs font-medium transition-colors
                                 ${
                                   isClosingPosition === order.orderId
                                     ? "bg-[var(--nt-border)] cursor-not-allowed"

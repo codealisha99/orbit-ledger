@@ -382,11 +382,11 @@ export default function BuySell({
                 <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
               </svg>
               <label htmlFor="margin" className="text-xs text-[color:color-mix(in_srgb,var(--nt-text)_60%,transparent)]">
-                Trading Margin
+                Margin
               </label>
             </div>
             <span className="text-[10px] text-[color:color-mix(in_srgb,var(--nt-text)_50%,transparent)] bg-[var(--nt-surface2)] px-1.5 py-0.5 rounded">
-              ${margin} USD
+              Collateral · ${Number(margin || 0).toLocaleString("en-US")} USD
             </span>
           </div>
 
@@ -394,7 +394,7 @@ export default function BuySell({
             <button
               type="button"
               aria-label="Decrease margin"
-              className="rounded-md border border-[var(--nt-border)] px-2 py-1 text-xs text-[color:color-mix(in_srgb,var(--nt-text)_80%,transparent)] hover:bg-[var(--nt-surface2)] transition-colors"
+              className="min-h-10 min-w-10 rounded-md border border-[var(--nt-border)] px-2 py-1 text-sm text-[color:color-mix(in_srgb,var(--nt-text)_80%,transparent)] hover:bg-[var(--nt-surface2)] transition-colors"
               onClick={() => setMargin((prev) => Math.max(10, Number(prev) - 10))}
               disabled={isSubmitting}
             >
@@ -420,13 +420,13 @@ export default function BuySell({
                   }
                 }}
                 disabled={isSubmitting}
-                className="w-full rounded-md border border-[var(--nt-border)] bg-[var(--nt-surface2)] pl-6 pr-2 py-1.5 text-xs outline-none focus:border-[var(--nt-accent)] transition-colors"
+                className="min-h-10 w-full rounded-md border border-[var(--nt-border)] bg-[var(--nt-surface2)] pl-6 pr-2 py-2 text-sm outline-none focus:border-[var(--nt-accent)] transition-colors"
               />
             </div>
             <button
               type="button"
               aria-label="Increase margin"
-              className="rounded-md border border-[var(--nt-border)] px-2 py-1 text-xs text-[color:color-mix(in_srgb,var(--nt-text)_80%,transparent)] hover:bg-[var(--nt-surface2)] transition-colors"
+              className="min-h-10 min-w-10 rounded-md border border-[var(--nt-border)] px-2 py-1 text-sm text-[color:color-mix(in_srgb,var(--nt-text)_80%,transparent)] hover:bg-[var(--nt-surface2)] transition-colors"
               onClick={() => setMargin((prev) => Number(prev) + 10)}
               disabled={isSubmitting}
             >
@@ -460,8 +460,11 @@ export default function BuySell({
               <div className="text-xs text-[color:color-mix(in_srgb,var(--nt-text)_50%,transparent)] bg-[var(--nt-surface2)] px-1.5 py-0.5 rounded mr-1">
                 <span className="text-[color:color-mix(in_srgb,var(--nt-text)_70%,transparent)] font-medium">{leverage}x</span>
               </div>
-              <div className="text-[10px] text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded">
-                ${(Number(margin) * leverage).toLocaleString("en-US")}
+              <div className="rounded bg-green-500/10 px-2 py-1 text-right">
+                <div className="text-[9px] leading-tight text-[var(--nt-muted)]">Position size</div>
+                <div className="text-[11px] font-medium text-green-400">
+                  ${(Number(margin || 0) * leverage).toLocaleString("en-US")}
+                </div>
               </div>
             </div>
           </div>
@@ -479,7 +482,7 @@ export default function BuySell({
                       ? "border-orange-500 bg-orange-500/10 text-orange-400"
                       : "border-[var(--nt-accent)] bg-[color:color-mix(in_srgb,var(--nt-accent)_10%,transparent)] text-[var(--nt-accent)]"
                     : "border-[var(--nt-border)] text-[color:color-mix(in_srgb,var(--nt-text)_70%,transparent)] hover:bg-[var(--nt-surface2)]"
-                } px-1 py-1.5 text-xs transition-all`}
+                } min-h-10 px-1 py-1.5 text-xs transition-all`}
                 onClick={() => setLeverage(lev)}
                 disabled={isSubmitting}
               >
