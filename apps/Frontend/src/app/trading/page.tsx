@@ -6,7 +6,7 @@ import ChartComponent from "@/components/Chart";
 import { Channels, Duration } from "@/utils/constants";
 import type { SYMBOL } from "@/utils/constants";
 import { findUserAmount } from "@/api/trade";
-import OrdersPanel from "@/components/OrdersPanel";
+import OrdersPanel, { type OrderActivity } from "@/components/OrdersPanel";
 import BuySell from "@/components/BuySell";
 import { toDisplayPrice } from "@/utils/utils";
 import { subscribePrices, type LivePrices } from "@/utils/price_store";
@@ -18,6 +18,7 @@ export default function Trading() {
   const [prices, setPrices] = useState({ askPrice: 0, bidPrice: 0 });
   const [priceChanges, setPriceChanges] = useState<Record<string, number>>({});
   const [marketPrices, setMarketPrices] = useState<LivePrices>({ BTC: { bid: 0, ask: 0 }, ETH: { bid: 0, ask: 0 }, SOL: { bid: 0, ask: 0 } });
+  const [orderActivity, setOrderActivity] = useState<OrderActivity[]>([]);
   const openPricesRef = useRef<Record<string, number>>({});
   const refreshOrdersRef = useRef<(() => void) | null>(null);
   const router = useRouter();
@@ -68,6 +69,20 @@ export default function Trading() {
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let isMounted = true;
 
+    function recordOrderActivity(event: OrderActivity["event"], data: Record<string, unknown>) {
+      const timestamp = Date.now();
+      const item: OrderActivity = {
+        id: `${String(data.orderId ?? "order")}-${timestamp}`,
+        event,
+        asset: String(data.asset ?? "BTC"),
+        side: data.type === "sell" ? "sell" : "buy",
+        price: Number(event === "opened" ? data.openPrice : data.closePrice) || 0,
+        pnl: data.pnl == null ? undefined : Number(data.pnl),
+        timestamp,
+      };
+      setOrderActivity((current) => [item, ...current].slice(0, 25));
+    }
+
     function connect() {
       const token = localStorage.getItem("token");
       if (!token || !isMounted) return;
@@ -91,6 +106,7 @@ export default function Trading() {
 
             case "ORDER_OPENED":
               const openedOrder = message.data;
+              recordOrderActivity("opened", openedOrder);
               toast.success(
                 `Order Opened: ${openedOrder.type.toUpperCase()} ${openedOrder.asset} at $${openedOrder.openPrice.toFixed(2)}`,
                 { duration: 5000 }
@@ -101,6 +117,7 @@ export default function Trading() {
 
             case "ORDER_CLOSED":
               const closedOrder = message.data;
+              recordOrderActivity("closed", closedOrder);
               const pnl = closedOrder.pnl || 0;
               const pnlColor = pnl >= 0 ? "text-green-400" : "text-red-400";
 
@@ -138,6 +155,7 @@ export default function Trading() {
 
             case "ORDER_LIQUIDATED":
               const liquidatedOrder = message.data;
+              recordOrderActivity("liquidated", liquidatedOrder);
               toast.error(
                 `Order Liquidated: ${liquidatedOrder.asset} ${liquidatedOrder.type.toUpperCase()} at $${liquidatedOrder.closePrice?.toFixed(2)}`,
                 { duration: 6000 }
@@ -251,7 +269,7 @@ export default function Trading() {
         <div className="grid min-h-[calc(100vh-112px)] flex-1 grid-cols-1 gap-3 lg:h-[calc(100vh-112px)] lg:min-h-[620px] lg:grid-cols-[minmax(0,1fr)_360px]">
           <section className="grid min-h-[620px] min-w-0 grid-rows-[minmax(340px,1.8fr)_minmax(240px,1fr)] gap-3 lg:min-h-0" aria-label="Market workspace">
             <ChartComponent symbol={symbol} duration={duration} onPriceUpdate={setPrices} />
-            <OrdersPanel onRefreshReady={(fn) => { refreshOrdersRef.current = fn; }} />
+            <OrdersPanel activity={orderActivity} onRefreshReady={(fn) => { refreshOrdersRef.current = fn; }} />
           </section>
 
           <div className="min-h-[620px] min-w-0 lg:min-h-0">
