@@ -1,19 +1,34 @@
+import { createServer } from "node:http";
 import { WebSocketServer, WebSocket, RawData } from "ws";
 import { createClient, RedisClientType } from "redis";
 import { SUPPORTED_ASSETS, type Asset } from "@orbitledger/shared";
 import { SubscriptionManager } from "./subscription-manager";
 import type { ClientMessage, ServerMessage, PriceUpdate } from "./types";
-import {Verifytokenws} from "./utils/wsjwt"
+import { Verifytokenws } from "./utils/wsjwt";
 
 let orderRedis: RedisClientType = createClient({
-  url: process.env.REDIS_URL || "redis://localhost:6379"
+  url: process.env.REDIS_URL || "redis://localhost:6379",
 });
 const redis = createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
 });
 
-const WS_PORT = Number(process.env.WEBSOCKET_PORT) || 8080;
-const wss = new WebSocketServer({ port: WS_PORT });
+const WS_PORT = Number(process.env.WEBSOCKET_PORT || process.env.PORT) || 8080;
+const server = createServer((req, res) => {
+  const ready = redis.isReady && orderRedis.isReady;
+  res.writeHead(req.url === "/ready" && !ready ? 503 : 200, {
+    "Content-Type": "application/json",
+  });
+  res.end(
+    JSON.stringify({
+      status: "ok",
+      ready,
+      revision: process.env.RAILWAY_GIT_COMMIT_SHA ?? "local",
+    }),
+  );
+});
+const wss = new WebSocketServer({ server, maxPayload: 4096 });
+server.listen(WS_PORT);
 const SubsManager = new SubscriptionManager();
 let isShuttingDown = false;
 
@@ -78,6 +93,10 @@ function handlePriceUpdate(asset: Asset, mssg: string) {
       askPrice: newData.askPrice,
       decimals: newData.decimals,
       time: newData.time,
+      tradeId: newData.tradeId,
+      price: newData.price,
+      quantity: newData.quantity,
+      source: newData.source,
     };
     let response: ServerMessage = {
       type: "PRICE_UPDATE",
@@ -108,8 +127,7 @@ function handleClientMessage(ws: WebSocket, mssg: RawData) {
       ws.send(JSON.stringify(response));
     } else if (message.type === "PING") {
       ws.send(JSON.stringify({ type: "PONG" }));
-    }
-    else if (message.type === "AUTH") {
+    } else if (message.type === "AUTH") {
       if (!message.token) {
         console.log("Authentication failed: No token provided");
         let response: ServerMessage = {
@@ -119,24 +137,25 @@ function handleClientMessage(ws: WebSocket, mssg: RawData) {
         ws.send(JSON.stringify(response));
         return;
       }
-      
-      const verify=Verifytokenws(message.token);
-      if(!verify || verify==null){
+
+      const verify = Verifytokenws(message.token);
+      if (!verify || verify == null) {
         console.log("Authentication failed: Token verification returned null");
         let response: ServerMessage = {
-        type: "UNAUTHENTICATED",
-        message: "Invalid TOKEN",
-      };
+          type: "UNAUTHENTICATED",
+          message: "Invalid TOKEN",
+        };
         ws.send(JSON.stringify(response));
         return;
       }
-      const userid=verify.userId;
+      const userid = verify.userId;
 
-      SubsManager.setUserId(ws,userid);
+      SubsManager.setUserId(ws, userid);
+      const info = SubsManager.clients.get(ws);
+      if (info) info.authenticatedUntil = Date.now() + 60000;
       console.log(`User ${userid} authenticated successfully via WebSocket`);
-      ws.send(JSON.stringify({ type: "AUTHENTICATED",userId:userid }));
-    }
-    else {
+      ws.send(JSON.stringify({ type: "AUTHENTICATED", userId: userid }));
+    } else {
       ws.send(
         JSON.stringify({ type: "ERROR", message: "Unknown message type" }),
       );
@@ -159,12 +178,15 @@ function handleOrderUpdate(channel: string, message: string) {
     const messageData = orderMessage.data;
 
     const serverMessage = {
-      type: messageType, // sending message type 
-      data: messageData // sending message data
+      type: messageType, // sending message type
+      data: messageData, // sending message data
     } as ServerMessage;
     const userConnections: WebSocket[] = [];
     SubsManager.clients.forEach((clientInfo, ws) => {
-      if (clientInfo.userId === userId) {
+      if (
+        clientInfo.userId === userId &&
+        (clientInfo.authenticatedUntil ?? 0) > Date.now()
+      ) {
         userConnections.push(ws);
       }
     });
@@ -177,8 +199,9 @@ function handleOrderUpdate(channel: string, message: string) {
         ws.send(JSON.stringify(serverMessage));
       }
     });
-    console.log(`Sent ${messageType} to ${userConnections.length} connections for user ${userId}`);
-
+    console.log(
+      `Sent ${messageType} to ${userConnections.length} connections for user ${userId}`,
+    );
   } catch (err) {
     console.error("Error handling order update:", err);
   }
@@ -194,6 +217,7 @@ async function gracefulShutdown() {
     client.close(1000, "Server shutting down");
   });
 
+  server.close();
   wss.close(() => {
     console.log("WebSocket server closed");
   });
@@ -207,7 +231,6 @@ async function gracefulShutdown() {
   console.log("Graceful shutdown complete");
   process.exit(0);
 }
-
 
 process.on("SIGTERM", gracefulShutdown);
 process.on("SIGINT", gracefulShutdown);

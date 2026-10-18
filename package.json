@@ -8,9 +8,10 @@
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
-    "prisma": "cd packages/database && prisma",
+    "prisma": "bun --bun packages/database/node_modules/prisma/build/index.js --config packages/database/prisma.config.ts",
     "seed-data": "bun run scripts/seed-historical-data.ts",
-    "fix-db": "bun run scripts/fix-active-orders.ts"
+    "test": "bun test packages/shared/tests apps/Price_Poller/tests",
+    "test:integration": "bun test apps/Backend/tests"
   },
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.10",
@@ -19,7 +20,7 @@
     "bun-types": "latest",
     "prettier": "^3.6.2",
     "prisma": "^7.6.0",
-    "turbo": "^2.5.8",
+    "turbo": "^2.11.9",
     "typescript": "5.9.2"
   },
   "engines": {
@@ -33,9 +34,8 @@
   "dependencies": {
     "@prisma/client": "^7.6.0",
     "@prisma/client-runtime-utils": "^7.6.0",
-    "axios": "^1.13.2",
     "jsonwebtoken": "^9.0.2",
     "redis": "^5.9.0",
-    "ws": "^8.18.3"
+    "ws": "^8.22.0"
   }
 }

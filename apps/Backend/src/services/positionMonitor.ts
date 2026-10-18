@@ -1,233 +1,107 @@
-import { calculateAllPnL } from "./pnlService";
-import { getCurrentPrice } from "./priceMonitor";
-import { closeOrder } from "../utils/tradeUtils";
-import { getUserOrders } from "../data/store";
-import { Order, reasonForClose, STALE_PRICE_THRESHOLD_MS } from "../types";
+import { shouldClosePosition } from "../utils/risk";
+export { shouldClosePosition } from "../utils/risk";
 import { prisma } from "@orbitledger/database";
-import type { CloseDecsion } from "../types";
+import { executableQuote, mutateAccount } from "./accountService";
+import { type Side } from "@orbitledger/shared";
+import { randomUUID } from "node:crypto";
 
-let isRunning = false;
-let timeoutId: NodeJS.Timeout | null = null;
-const CHECK_INTERVAL = 5000;
-
-export function shouldClosePosition(
-    order: Order,
-    currentPrice: number
-): CloseDecsion | null {
-    if (order.type === "buy") {
-        if (currentPrice <= order.liquidationPrice) {
-            const sendreason: CloseDecsion = {
-                reason: "liquidation",
-                price: currentPrice,
-            };
-            return sendreason;
-        }
-    } else {
-        if (currentPrice >= order.liquidationPrice) {
-            const sendreason: CloseDecsion = {
-                reason: "liquidation",
-                price: currentPrice,
-            };
-            return sendreason;
-        }
-    }
-
-    if (order.stopLoss) {
-        if (order.type === "buy") {
-            if (currentPrice <= order.stopLoss) {
-                return {
-                    reason: "stop_loss",
-                    price: currentPrice,
-                };
-            }
-        } else {
-            if (currentPrice >= order.stopLoss) {
-                return {
-                    reason: "stop_loss",
-                    price: currentPrice,
-                };
-            }
-        }
-    }
-
-    if (order.takeProfit) {
-        if (order.type === "buy") {
-            if (currentPrice >= order.takeProfit) {
-                return {
-                    reason: "take_profit",
-                    price: currentPrice,
-                };
-            }
-        } else {
-            if (currentPrice <= order.takeProfit) {
-                return {
-                    reason: "take_profit",
-                    price: currentPrice,
-                };
-            }
-        }
-    }
-
-    
-    return null;
-}
-
-async function updateTrailingStopLoss(order: Order, currentPrice: number): Promise<boolean> {
-    if (!order.trailingStopLoss?.enabled) {
-        return false; // No trailing stop loss enabled
-    }
-
-    const tsl = order.trailingStopLoss;
-    let tslUpdated = false;
-
-    if (order.type === "buy") {
-        if (!tsl.highestPrice || currentPrice > tsl.highestPrice) {
-            tsl.highestPrice = currentPrice;
-            let newStopLoss = currentPrice - tsl.trailingDistance;
-
-            if (newStopLoss <= 0) {
-                console.warn(`[TSL] BUY order ${order.orderId}: Calculated negative SL (${newStopLoss}), capping at 100 ($0.01)`);
-                newStopLoss = 100;
-            }
-
-            if (newStopLoss <= order.liquidationPrice) {
-                newStopLoss = order.liquidationPrice + 100; // Slightly above (100 = $0.01 in PRICE_SCALE)
-                console.warn(`[TSL] BUY order ${order.orderId}: Capping SL at liquidation + $0.01`);
-            }
-
-            if (order.stopLoss === undefined || order.stopLoss === null || newStopLoss > order.stopLoss) {
-                order.stopLoss = newStopLoss;
-                tslUpdated = true;
-                console.log(`[TSL] BUY order ${order.orderId}: Updated SL to ${newStopLoss} (highest: ${currentPrice})`);
-            }
-        }
-    } else {
-        if (!tsl.lowestPrice || currentPrice < tsl.lowestPrice) {
-            tsl.lowestPrice = currentPrice;
-            let newStopLoss = currentPrice + tsl.trailingDistance;
-
-            if (newStopLoss >= order.liquidationPrice) {
-                newStopLoss = order.liquidationPrice - 100; // Slightly below (100 = $0.01 in PRICE_SCALE)
-                console.warn(`[TSL] SELL order ${order.orderId}: Capping SL at liquidation - $0.01`);
-            }
-
-            if (order.stopLoss === undefined || order.stopLoss === null || newStopLoss < order.stopLoss) {
-                order.stopLoss = newStopLoss;
-                tslUpdated = true;
-                console.log(`[TSL] SELL order ${order.orderId}: Updated SL to ${newStopLoss} (lowest: ${currentPrice})`);
-            }
-        }
-    }
-
-    if (tslUpdated) {
-        try {
-            await prisma.activeOrder.update({
-                where: { orderId: order.orderId },
-                data: {
-                    stopLoss: order.stopLoss,
-                    trailingStopLossHighestPrice: tsl.highestPrice || null,
-                    trailingStopLossLowestPrice: tsl.lowestPrice || null,
-                }
+export const riskHealth = {
+  lastCompletedAt: 0,
+  checked: 0,
+  closed: 0,
+  skipped: 0,
+  errors: 0,
+};
+let running = false;
+let timer: ReturnType<typeof setTimeout> | undefined;
+export async function checkCycle() {
+  const metrics = { checked: 0, closed: 0, skipped: 0, errors: 0 };
+  try {
+    const orders = await prisma.activeOrder.findMany();
+    for (const order of orders) {
+      metrics.checked++;
+      try {
+        const quote = executableQuote(order.asset);
+        const price = order.type === "buy" ? quote.bid : quote.ask;
+        const decision = shouldClosePosition(order, price);
+        if (decision) {
+          await mutateAccount(
+            order.userId,
+            `risk:${order.orderId}:${randomUUID()}`,
+            { kind: "close", orderId: order.orderId, reason: decision.reason },
+          );
+          metrics.closed++;
+        } else if (order.trailingStopLossEnabled) {
+          await prisma.$transaction(async (tx) => {
+            await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${order.userId}))`;
+            const current = await tx.activeOrder.findUnique({
+              where: { orderId: order.orderId },
             });
-        } catch (err) {
-            console.error(`[TSL] Failed to persist TSL update for order ${order.orderId}:`, err);
+            if (!current || !current.trailingStopLossDistance) return;
+            const q = executableQuote(current.asset);
+            const long = current.type === "buy";
+            const mark = long ? q.bid : q.ask;
+            const peak = long
+              ? Math.max(current.trailingStopLossHighestPrice ?? mark, mark)
+              : Math.min(current.trailingStopLossLowestPrice ?? mark, mark);
+            const stop = long
+              ? Math.max(
+                  current.stopLoss ?? 0,
+                  peak - current.trailingStopLossDistance,
+                )
+              : Math.min(
+                  current.stopLoss ?? Number.MAX_SAFE_INTEGER,
+                  peak + current.trailingStopLossDistance,
+                );
+            if (stop === current.stopLoss) return;
+            await tx.activeOrder.update({
+              where: { orderId: current.orderId },
+              data: {
+                stopLoss: stop,
+                ...(long
+                  ? { trailingStopLossHighestPrice: peak }
+                  : { trailingStopLossLowestPrice: peak }),
+              },
+            });
+            const user = await tx.user.update({
+              where: { userId: order.userId },
+              data: { version: { increment: 1 } },
+            });
+            await tx.accountEvent.create({
+              data: {
+                userId: order.userId,
+                version: user.version,
+                kind: "trailing_stop",
+                positionId: order.orderId,
+                payload: { stopLoss: stop },
+              },
+            });
+          });
         }
+      } catch (error) {
+        metrics.skipped++;
+        console.error(
+          "[RISK] Position skipped",
+          order.orderId,
+          error instanceof Error ? error.message : error,
+        );
+      }
     }
-
-    return tslUpdated;
+  } catch (error) {
+    metrics.errors++;
+    console.error("[RISK] Cycle failed", error);
+  } finally {
+    Object.assign(riskHealth, metrics, { lastCompletedAt: Date.now() });
+    if (running) timer = setTimeout(checkCycle, 5000);
+  }
 }
-
-export async function checkCycle():Promise<void>{
-    try{
-        console.log(`starting the monitoring cycle ${Date.now()}`);
-        const alluser=getUserOrders("all");
-        let postionChecked=0;
-        let postionClsoed=0;
-        let counterror=0;
-        let trailingUpdates=0;
-        let price:number;
-        for (const [orderId, order] of alluser.entries()){
-            postionChecked++;
-            const UserAsset=await getCurrentPrice(order.asset);
-
-            if(!UserAsset || UserAsset.bidPrice <= 0 || UserAsset.askPrice <= 0){
-                console.error(`[checkcycle] Invalid or missing price data for ${order.asset}`);
-                counterror++;
-                continue;
-            }
-
-            if(order.type === 'buy'){
-                price = UserAsset.bidPrice;
-            } else if(order.type === "sell"){
-                price = UserAsset.askPrice;
-            } else {
-                console.error(`[CRITICAL] Invalid order type: ${order.type} for order ${orderId}`);
-                counterror++;
-                continue; // Skip this order
-            }
-
-            if (!isFinite(price) || price <= 0) {
-                console.error(`[CRITICAL] Invalid price for ${order.asset}: ${price} (order ${orderId})`);
-                counterror++;
-                continue;
-            }
-
-            const closePosition = shouldClosePosition(order, price);
-
-            if(closePosition === null){
-                const tslUpdated = await updateTrailingStopLoss(order, price);
-                if (tslUpdated) {
-                    trailingUpdates++;
-                }
-            } else {
-                try{
-                    console.log(`[POSITION MONITOR] Closing Order ${orderId} | Reason: ${closePosition.reason} | Trigger Price: ${closePosition.price} | Order Type: ${order.type} | LiqPrice: ${order.liquidationPrice} | SL: ${order.stopLoss} | TP: ${order.takeProfit}`);
-                    await closeOrder(order.userId, orderId, closePosition.price, closePosition.reason);
-                    postionClsoed++;
-                } catch(err){
-                    counterror++;
-                    console.error('Error occurred while closing the order:', err);
-                }
-            }
-
-        }
-
-        console.log(`[CheckCycle] Completed: ${postionChecked} checked, ${trailingUpdates} TSL updates, ${postionClsoed} closed, ${counterror} errors`);
-
-        if (isRunning) {
-            timeoutId = setTimeout(checkCycle, CHECK_INTERVAL);
-        }
-    }catch(err){
-        console.error("[CheckCycle] Error occurred while checking:",err);
-
-        if (isRunning) {
-            timeoutId = setTimeout(checkCycle, CHECK_INTERVAL);
-        }
-    }
+export function startPositionMonitor() {
+  if (!running) {
+    running = true;
+    void checkCycle();
+  }
 }
-
-export function startPositionMonitor():void{
-    if(isRunning===true){
-        console.log("The position monitor is Still Running");
-        return;
-    }
-    isRunning=true;
-    console.log("Starting position monitor (checking every 5000ms)");
-    setTimeout(() => {
-        checkCycle().catch(err => console.error("[MONITOR] Startup error:", err));
-    }, 0);
-}
-export function stopPositionMonitor():void{
-    if(isRunning===false){
-        console.log("The position monitor is already stopped");
-        return;
-    }
-    isRunning=false;
-    
-    if(timeoutId !== null){
-        clearTimeout(timeoutId);
-        timeoutId = null;
-    }
-    
-    console.log("Position monitor stopped");
+export function stopPositionMonitor() {
+  running = false;
+  if (timer) clearTimeout(timer);
 }

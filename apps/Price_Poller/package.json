@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "bun ../../scripts/watch-quiet.ts src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target bun",
-    "start": "bun src/index.ts"
+    "start": "bun src/index.ts",
+    "check-types": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/bun": "latest"
@@ -19,6 +20,6 @@
     "kafkajs": "^2.2.4",
     "@orbitledger/shared": "workspace:*",
     "@orbitledger/database": "workspace:*",
-    "ws": "^8.18.3"
+    "ws": "^8.22.0"
   }
 }

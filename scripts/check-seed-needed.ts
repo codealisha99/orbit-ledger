@@ -1,32 +1,44 @@
-import { prisma } from '../packages/database/src/index';
-
-async function checkNeedsSeed(): Promise<boolean> {
-  try {
-    const result = await prisma.$queryRaw<Array<{ count: bigint }>>`
-      SELECT COUNT(*) as count FROM "Trade"
-    `;
-    
-    const tradeCount = Number(result[0].count);
-    
-    if (tradeCount < 1000) {
-      console.log(`\n Database has only ${tradeCount} trades. Seeding recommended.\n`);
-      return true;
-    }
-    
-    console.log(`Database has ${tradeCount} trades. Seeding not needed.\n`);
-    return false;
-  } catch (error) {
-    console.error('Error checking database:', error);
-    return false;
-  } finally {
-    await prisma.$disconnect();
+import { prisma } from "../packages/database/src/index";
+import {
+  SUPPORTED_ASSETS,
+  INTERVAL_SECONDS,
+  bucketStart,
+} from "../packages/shared/src/index";
+let missing = false;
+for (const symbol of SUPPORTED_ASSETS) {
+  for (const interval of Object.keys(
+    INTERVAL_SECONDS,
+  ) as (keyof typeof INTERVAL_SECONDS)[]) {
+    const start = new Date(
+      (bucketStart(Date.now() / 1000, interval) -
+        INTERVAL_SECONDS[interval] * 100) *
+        1000,
+    );
+    const [count, earliest, latest] = await Promise.all([
+      prisma.marketCandle.count({
+        where: { symbol, interval, timestamp: { gte: start } },
+      }),
+      prisma.marketCandle.findFirst({
+        where: { symbol, interval },
+        orderBy: { timestamp: "asc" },
+      }),
+      prisma.marketCandle.findFirst({
+        where: { symbol, interval },
+        orderBy: { timestamp: "desc" },
+      }),
+    ]);
+    if (count < 100) missing = true;
+    console.log(
+      JSON.stringify({
+        symbol,
+        interval,
+        recentBars: count,
+        earliest: earliest?.timestamp ?? null,
+        latest: latest?.timestamp ?? null,
+        needsBackfill: count < 100,
+      }),
+    );
   }
 }
-
-checkNeedsSeed()
-  .then((needsSeed) => {
-    process.exit(needsSeed ? 1 : 0);
-  })
-  .catch(() => {
-    process.exit(0);
-  });
+await prisma.$disconnect();
+process.exitCode = missing ? 1 : 0;

@@ -1,241 +1,90 @@
 # OrbitLedger
 
-OrbitLedger is a paper trading platform for BTC, ETH, and SOL. It combines a Next.js trading terminal, an API, a WebSocket market feed, and a Binance price poller in one Bun workspace. Trades use virtual funds; market quotes come from Binance.
+OrbitLedger is a crypto paper trading workspace for BTC, ETH, and SOL. It uses virtual USD collateral and simulated execution quotes derived from Binance public trades. No real assets are bought or sold.
+
+The Trading page separates market context, chart intervals/ranges, trade entry, positions, completed trades, public market prints, and private account activity. Dashboard reconciles available cash, reserved collateral, signed P&L, exposure, and genuine equity history.
 
 ## Local setup
 
-Install Bun and Docker Compose, copy `.env.example` to `.env`, then run:
+Install Bun 1.3+ and PostgreSQL 14+ / Redis, or use Docker Compose:
 
 ```sh
+cp .env.example .env
 bun install
+# Optional when PostgreSQL and Redis are not already running:
 docker compose up -d
 bun run prisma generate
 bun run prisma migrate deploy
 bun run dev
 ```
 
-The frontend runs on port 3000, the API on port 5000, and the WebSocket service on port 8080. PostgreSQL and Redis are provided by Docker Compose. Set `JWT_SECRET` to a long random value before exposing the API publicly.
+Configure local connection strings and a long random `JWT_SECRET` before starting. The frontend uses port 3000, API 5000, and WebSocket 8080. Set `PORT` for the API and `WEBSOCKET_PORT` for the local WebSocket process; keep production service variables separate. Kafka is optional and stays disabled when `KAFKA_BROKERS` is empty. The poller's optional local health port is `POLLER_HEALTH_PORT`.
 
-## Deployment layout
-
-- **Vercel:** `apps/Frontend` (Next.js). Set `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_WEBSOCKET_URL` to the deployed service URLs.
-- **Railway:** run the Backend, Websocket, and Price_Poller as separate services from the repository root. Set each service's start command to its workspace entry point and provide `DATABASE_URL`, `REDIS_URL`, and `JWT_SECRET` as appropriate.
-- **Neon:** use a PostgreSQL connection string for `DATABASE_URL`, then run `bun run prisma migrate deploy` as a release step.
-
-Do not commit `.env` files, provider tokens, or database connection strings. `.env.example` contains variable names and local defaults only.
+Never commit environment files, database credentials, or provider secrets. `.env.example` contains local defaults only. `INITIAL_BALANCE_USD` defaults to $5,000 and configures the same durable and in-memory allocation for password and OAuth signup.
 
 ## Architecture
 
-The system consists of four independent services communicating through Redis pub/sub and Kafka streams. Live prices flow from Binance WebSocket through Redis, while daily and weekly OHLCV history is backfilled from Binance into PostgreSQL for long-range charts. The Backend maintains in-memory order state with periodic snapshots to PostgreSQL for crash recovery, while the WebSocket service handles authenticated client connections with dual Redis subscriptions for prices and user-specific order events.
+- `apps/Frontend`: Next.js 15 / React 19, lightweight-charts, shared account cache and one managed market/account WebSocket transport. A same-origin server proxy holds the API session in an HttpOnly cookie. Browser storage never contains a bearer token.
+- `apps/Backend`: Express / Bun, Prisma / PostgreSQL, Redis quote subscription, a five-second risk cycle, five-minute genuine equity valuations, and a durable transactional event outbox. Account transactions lock their account before reading or changing balances and positions. Memory is a cache, not financial authority.
+- `apps/Websocket`: public market subscriptions and private versioned account events. Short-lived in-memory tickets authenticate private delivery; event replay and account reads reconcile reconnect gaps.
+- `apps/Price_Poller`: Binance aggregate trades, simulated quote publication, a durable SQLite spool, and direct PostgreSQL persistence. With Kafka configured, locally persisted batches are acknowledged by all broker replicas and consumer offsets advance only after database writes. Deduplication includes symbol and source trade identity.
+- `packages/shared`: scaled-price/cents/time contracts, freshness, P&L, fees, liquidation, quantities, interval boundaries, and formatting.
+- `packages/database`: account/execution/event/receipt/valuation models, public trade history, and stored candles. Plain PostgreSQL works; TimescaleDB is optional.
 
-```mermaid
-graph TB
-    A[Binance WebSocket] -->|Price Stream| B[Price_Poller]
-    B -->|Pub/Sub| C[Redis]
-    B -->|Events| D[Kafka]
-    D -->|Batch Write| E[(PostgreSQL + TimescaleDB)]
-    C -->|Subscribe| F[WebSocket Server]
-    G[Frontend] -->|HTTP/JWT| H[Backend API]
-    G -.->|WS| F
-    H -->|Read/Write| E
-    H -->|Order Events| C
-    H -->|Price Read| C
-    F -->|Broadcast| G
+Equity equals **available cash + reserved collateral + gross open P&L**. Unknown/stale valuations remain unavailable. Added collateral does not increase quantity. Net execution results include allocated opening/addition costs and exit fees. Quotes include a simulated ±0.5% spread; opening, adding collateral, and closing each charge 0.5% of the collateral involved. Stops can slip, and isolated gap losses are capped at reserved collateral. See the [financial and release policy](docs/release-runbook.md).
 
-    style B fill:#e1f5ff
-    style H fill:#ffe1e1
-    style F fill:#e1ffe1
-    style G fill:#fff5e1
-```
+## Historical data
 
-**ASCII Flow:**
-```
-┌─────────────┐
-│   Binance   │ (Price Source)
-└──────┬──────┘
-       │
-       v
-┌─────────────┐
-│Price_Poller │ (EventEmitter Fan-out)
-└──┬────────┬─┘
-   │        │
-   │        └──────────> Kafka ──> PostgreSQL (Historical)
-   │
-   └──────> Redis (Real-time)
-              │
-              ├──> WebSocket ──> Frontend (Live Updates)
-              │
-              └──> Backend ──> PostgreSQL (Orders/Users)
-                     │
-                     └──> Frontend (REST API)
-```
+Run history jobs separately from deployments:
 
-## Components
-
-### 🔴 Backend
-**Location:** `apps/Backend`
-**Tech Stack:** Express + Prisma + PostgreSQL + Redis
-**Responsibilities:**
-- JWT authentication and OAuth integration (Google, GitHub)
-- Trading operations: open/close/partial-close positions with TP/SL/TSL
-- Automated position monitoring for liquidations and take-profit/stop-loss execution
-- State restoration from PostgreSQL on startup
-- Periodic snapshots every 10 seconds for crash recovery
-- Real-time order broadcasting via Redis pub/sub
-
----
-
-### 🟡 Frontend
-**Location:** `apps/Frontend`
-**Tech Stack:** Next.js 15 + React 19 + TailwindCSS + lightweight-charts
-**Responsibilities:**
-- Real-time price charts with candlestick visualization
-- Buy/Sell panel with margin and leverage controls
-- WebSocket integration for live order updates
-- OAuth authentication flows
-- Toast notifications for trade events
-
----
-
-### 🔵 Price_Poller
-**Location:** `apps/Price_Poller`
-**Tech Stack:** Binance WebSocket + Redis + Kafka + EventEmitter
-**Responsibilities:**
-- Connect to Binance streams (BTC/ETH/SOL aggregate trades)
-- Convert prices to internal representation (×10000 for precision)
-- Fan out via EventEmitter to Redis publisher and Kafka producer
-- Batch processing: 500 trades or 5-second timeout for database writes
-- Deduplication using Binance tradeId
-
----
-
-### 🟢 WebSocket Server
-**Location:** `apps/Websocket`
-**Tech Stack:** ws library + Dual Redis clients
-**Responsibilities:**
-- Maintain separate Redis subscriptions for prices (BTC/ETH/SOL) and order events (orders:userId)
-- JWT authentication via query parameters
-- Broadcast user-specific order events to authenticated connections only
-- Real-time price distribution with sub-20ms latency
-
----
-
-### 📦 Shared Packages
-
-**`packages/database`**
-- Prisma schema with live trades, historical market candles, and user/trading state models
-- PostgreSQL with TimescaleDB for time-series optimization
-- Auto-generated Prisma client in `generated/prisma/`
-
-**`packages/shared`**
-- Constants: `PRICE_SCALE = 10000`, `USD_SCALE = 100`, `SUPPORTED_ASSETS`, `LEVERAGE_OPTIONS`
-- Utilities: `toInternalPrice()`, `fromInternalPrice()`, `toInternalUSD()`, `fromInternalUSD()`
-
-## Setup
-
-Install dependencies and start infrastructure services:
-
-```bash
-bun install
-docker-compose up -d
-```
-
-Create environment file at `apps/Backend/.env`:
-
-```env
-DATABASE_URL=postgresql://user:XYZ@123@localhost:5432/trades_db
-REDIS_URL=redis://localhost:6379
-KAFKA_BROKERS=localhost:9092
-JWT_SECRET=your-secret-min-32-characters
-NODE_ENV=development
-PORT=5000
-INITIAL_BALANCE_USD=5000
-CORS_ORIGINS=http://localhost:3000,http://localhost:5173
-```
-
-Initialize database and seed historical data:
-
-```bash
-bun run prisma generate
-bun run prisma migrate dev
+```sh
+# Daily and weekly history since 2019 (including intersecting weekly buckets):
 bun run seed-data
+# Explicit bounded intraday backfill; choose the window you need:
+HISTORY_START=2026-09-18 HISTORY_INTERVALS=1m,5m,15m,1h,4h bun run seed-data
+# Coverage diagnostics across markets and intervals:
+bun scripts/check-seed-needed.ts
 ```
 
-The idempotent seed command stores Binance daily and weekly candles from 2019 onward in `market_candles`. BTC and ETH history begins in 2019; SOL history begins when Binance listed SOLUSDT. Railway runs the migration and backfill in its pre-deploy step. The Backend refreshes the active daily and weekly candles every five minutes.
+The jobs deduplicate completed bars on rerun and repair the requested window. The API refreshes previous/current candles across all intervals every minute. Actual coverage and missing history are reported; large requests require a coarser interval rather than silently truncating the period. Genuine equity snapshots begin after the new service runs; they cannot reconstruct earlier equity from old cash snapshots.
 
-## Run
+## Verification
 
-Start all services concurrently:
-
-```bash
-bun run dev
+```sh
+bun run check-types
+bun run lint
+bun run test
+bun run build
+# Apply migrations to an isolated local DB named actioncd_quality_* first:
+DATABASE_URL=postgresql://quality:quality@localhost:5432/actioncd_quality_local bun run test:integration
 ```
 
-**Access URLs:**
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:5000/api/v2
-- WebSocket: ws://localhost:8080
-- Prisma Studio: `bun run prisma studio` → http://localhost:5555
+The integration runner refuses nonlocal databases or other database names. CI applies migrations to a disposable PostgreSQL database and runs checks, lint, tests, and builds. The [implementation report](docs/implementation-report.md) records local browser, financial, migration, and dependency-audit results and their limits.
 
-Run individual services:
+## API
 
-```bash
-cd apps/Backend && bun run dev
-cd apps/Frontend && bun run dev
-cd apps/Price_Poller && bun run src/index.ts
-cd apps/Websocket && bun run src/index.ts
-```
+The API base is `/api/v2`. Browser clients use `/api/bridge/*` on the frontend, which forwards the server-held session. Direct service clients may use an API bearer token. All financial mutation requests require a stable `Idempotency-Key`; retries must preserve both key and input.
 
-## API Reference
+| Endpoint                                                                                             | Purpose                                                                        |
+| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `POST /user/signup`, `/user/signin`                                                                  | Password account/session creation                                              |
+| `GET /auth/status`, `/auth/google`, `/auth/github`                                                   | Provider availability and login                                                |
+| `POST /auth/exchange`                                                                                | Exchange a verified, expiring one-use OAuth code                               |
+| `GET /user/balance`, `/user/ws-ticket`                                                               | Durable cash and short-lived private stream ticket                             |
+| `GET /trade/summary`                                                                                 | Versioned account snapshot and position valuations                             |
+| `POST /trade/open`, `/trade/close`, `/trade/partial-close`, `/trade/add-margin`, `/trade/protection` | Idempotent position mutations                                                  |
+| `GET /trade/history`                                                                                 | Symbol/side/date/receipt filters, close-time sorting, cursor pagination        |
+| `GET /trade/receipt/:positionId`, `/trade/events?after=version`                                      | Private lifecycle receipts and replay                                          |
+| `GET /trade/equity`, `/trade/performance`                                                            | Genuine valuation history and grouped completed-position metrics               |
+| `GET /asset`, `/asset/candles`, `/asset/trades`, `/asset/stats`                                      | Fresh quotes, coverage-aware candles, public executions, actual 24h statistics |
 
-### Authentication
-```bash
-POST /api/v2/user/signup     # Register with email/password
-POST /api/v2/user/signin     # Login, returns JWT token
-GET  /api/v2/user/balance    # Requires Authorization: Bearer <token>
-```
+`/health` reports API liveness/revision. `/ready` reports dependency/quote/risk health separately. WebSocket and poller services expose their own health/readiness endpoints. Rate limits and structured failures distinguish invalid requests, authentication, unavailable quotes, and ambiguous submissions.
 
-### OAuth
-```bash
-GET  /api/v2/auth/google              # Initiate Google OAuth
-GET  /api/v2/auth/github              # Initiate GitHub OAuth
-POST /api/v2/auth/link/google         # Link Google to existing account
-POST /api/v2/auth/link/github         # Link GitHub to existing account
-```
+## Deployment
 
-### Trading
-```bash
-POST /api/v2/trade/open               # Open position (supports TP/SL/TSL)
-POST /api/v2/trade/close              # Close position, returns PnL
-POST /api/v2/trade/partial-close      # Close 1-99% of position
-POST /api/v2/trade/add-margin         # Add collateral to reduce liquidation risk
-GET  /api/v2/trade/open               # List active positions
-GET  /api/v2/trade/history            # Closed trades with PnL
-```
+Vercel hosts `apps/Frontend`; set server-only `API_URL`, public `NEXT_PUBLIC_API_URL`, and `NEXT_PUBLIC_WEBSOCKET_URL`. Production sessions require HTTPS. Railway runs API, WebSocket, and poller separately. The root `railway.json` is the API config; set the other services' config paths to `apps/Websocket/railway.json` and `apps/Price_Poller/railway.json`. The poller needs a persistent volume for `INGEST_SPOOL_PATH`.
 
-### Market Data
-```bash
-GET /api/v2/asset/                    # List assets with current prices
-GET /api/v2/asset/candles             # Historical daily/weekly and live intraday candles
-```
-
-All trading endpoints require JWT authentication via `Authorization: Bearer <token>` header. Rate limiting is enforced globally and per-endpoint.
-
-## Technology Stack
-
-| Layer | Technology |
-|-------|-----------|
-| **Package Manager** | Bun 1.3.0 |
-| **Monorepo** | Turborepo |
-| **Language** | TypeScript 5.9.2 |
-| **Database** | PostgreSQL + TimescaleDB + Prisma ORM |
-| **Cache** | Redis |
-| **Message Queue** | Kafka |
-| **Backend** | Express + Node.js |
-| **Frontend** | Next.js 15 + React 19 + TailwindCSS 3 |
-| **Charts** | lightweight-charts 5.0 |
-| **WebSocket** | ws library |
-| **Real-time Data** | Binance WebSocket API |
+**Existing installations require a coordinated financial-writer migration and legacy data review.** Stop old writers, preserve backups/snapshots, apply the migration, then deploy and verify the matching service revisions. Do not mix the old and new financial writers or roll back to the old destructive startup logic. [The release and recovery runbook](docs/release-runbook.md) covers migration flags, unknown legacy fees, operational gates, monitoring, and rollback.
 
 ## License
 

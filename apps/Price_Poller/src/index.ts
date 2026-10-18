@@ -1,134 +1,105 @@
-
-const originalStderrWrite = process.stderr.write.bind(process.stderr);
-let suppressNextStderrLines = 0;
-
-process.stderr.write = function (chunk: any, ...args: any[]): boolean {
-  const text = chunk.toString();
-
-  if (
-    text.includes('TimeoutNegativeWarning') ||
-    text.includes('is a negative number') ||
-    text.includes('Timeout duration was set to 1')
-  ) {
-    suppressNextStderrLines = 11;
-    return true; // Pretend we wrote it successfully
-  }
-
-  if (
-    suppressNextStderrLines > 0 &&
-    (text.trim().startsWith('at ') ||
-     text.includes('kafkajs') ||
-     text.includes('requestQueue') ||
-     text.includes('node:') ||
-     text.trim() === '')
-  ) {
-    suppressNextStderrLines--;
-    return true; // Suppress this line
-  }
-
-  if (suppressNextStderrLines > 0 && !text.trim().startsWith('at ')) {
-    suppressNextStderrLines = 0;
-  }
-
-  return originalStderrWrite(chunk, ...args);
-};
-
-const originalWarn = console.warn;
-console.warn = function (...args: any[]) {
-  const message = args.join(' ');
-
-  if (
-    message.includes('TimeoutNegativeWarning') ||
-    message.includes('is a negative number') ||
-    message.includes('Timeout duration was set to 1')
-  ) {
-    return; // Suppress
-  }
-
-  originalWarn.apply(console, args);
-};
-
-import { startBinance } from "./binance";
-import { kafkaproduce, shutdownProducer } from "./kafka-producer";
-import { consumer_gr, shutdownConsumer } from "./kafka-consumer";
-import { startRedis } from "./redish-publisher";
-import { binanceEmitter, type Trades } from "./binance";
+import "../../../packages/database/src/env";
+import { startBinance, stopBinance, binanceEmitter } from "./binance";
+import { startRedis, stopRedis } from "./redish-publisher";
 import { writeBatch } from "./database";
-
-const kafkaEnabled = Boolean(process.env.KAFKA_BROKERS?.trim());
-let directBatch: Trades[] = [];
-let directFlushTimer: ReturnType<typeof setInterval> | undefined;
-let directFlushActive = false;
-
-async function flushDirectBatch() {
-  if (directFlushActive || directBatch.length === 0) return;
-  directFlushActive = true;
-  const batch = directBatch;
-  directBatch = [];
+import { enqueue, pendingBatch, acknowledge, spoolSize } from "./spool";
+import {
+  startKafkaProducer,
+  publishBatch,
+  stopKafkaProducer,
+} from "./kafka-producer";
+import { consumer_gr, shutdownConsumer } from "./kafka-consumer";
+const kafkaEnabled = !!process.env.KAFKA_BROKERS?.trim();
+let flushing = false;
+let stopping = false;
+let sourceHalted = false;
+let lastTradeAt = 0;
+let lastFlushAt = 0;
+let lastError: string | null = null;
+async function flush() {
+  if (flushing) return;
+  flushing = true;
   try {
-    await writeBatch(batch);
+    const batch = pendingBatch();
+    if (!batch.length) return;
+    if (kafkaEnabled) await publishBatch(batch);
+    else await writeBatch(batch);
+    acknowledge(batch);
+    lastFlushAt = Date.now();
+    lastError = null;
   } catch (error) {
-    console.error("Direct database write failed:", error);
+    lastError = String(error);
+    console.error("[INGEST] Batch retained for retry", error);
   } finally {
-    directFlushActive = false;
+    flushing = false;
   }
 }
-
-export async function startTrade() {
-  console.log("═══════════════════════════════════════");
-  console.log("  Starting Price_Poller Service");
-  console.log("═══════════════════════════════════════");
-
-  console.log("\n[1/4] Initializing Redis Publisher...");
-  await startRedis();
-
-  if (kafkaEnabled) {
-    console.log("\n[2/4] Initializing Kafka Producer...");
-    kafkaproduce();
-
-    console.log("\n[3/4] Initializing Kafka Consumer...");
-    consumer_gr();
-  } else {
-    console.log("\n[2/4] Kafka is disabled; persisting trades directly to PostgreSQL.");
-    binanceEmitter.on("trade", (trade: Trades) => {
-      directBatch.push(trade);
-      if (directBatch.length >= 500) void flushDirectBatch();
-    });
-    directFlushTimer = setInterval(() => void flushDirectBatch(), 5000);
-  }
-
-  console.log("\n[4/4] Connecting to Binance WebSocket...");
-  startBinance();
-
-  console.log("\n✓ All Price_Poller components initialized!");
-  console.log("═══════════════════════════════════════\n");
+await startRedis();
+if (kafkaEnabled) {
+  await startKafkaProducer();
+  void consumer_gr();
 }
-
-async function gracefulShutdown(signal: string) {
-  console.log(`\n${signal} received: Coordinating Price_Poller shutdown...`);
-
+binanceEmitter.on("trade", (trade) => {
+  lastTradeAt = trade.timestamp;
   try {
-    if (kafkaEnabled) {
-      console.log("\n[1/3] Shutting down Kafka Consumer...");
-      await shutdownConsumer();
-      console.log("\n[2/3] Shutting down Kafka Producer...");
-      await shutdownProducer();
-    } else {
-      if (directFlushTimer) clearInterval(directFlushTimer);
-      await flushDirectBatch();
-    }
-
-    console.log("\nShutting down remaining components...");
-
-    console.log("\n✓ Price_Poller shutdown complete. Exiting...");
-    process.exit(0);
+    enqueue(trade);
+    if (spoolSize() >= 500) void flush();
   } catch (error) {
-    console.error("\n✗ Error during shutdown:", error);
-    process.exit(1);
+    sourceHalted = true;
+    console.error("[INGEST] Source halted", error);
+    stopBinance();
+    process.exitCode = 1;
   }
+});
+const timer = setInterval(() => void flush(), 1000);
+const healthTimer = setInterval(() => {
+  const pending = spoolSize();
+  if (pending)
+    console.log(JSON.stringify({ metric: "ingest_pending", value: pending }));
+}, 30000);
+startBinance();
+async function shutdown() {
+  if (stopping) return;
+  stopping = true;
+  stopBinance();
+  clearInterval(timer);
+  clearInterval(healthTimer);
+  if (!flushing) await flush();
+  if (kafkaEnabled) {
+    await shutdownConsumer();
+    await stopKafkaProducer();
+  }
+  await stopRedis();
+  process.exit(0);
 }
+process.on("SIGTERM", () => void shutdown());
+process.on("SIGINT", () => void shutdown());
 
-process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
-process.on("SIGINT", () => gracefulShutdown("SIGINT"));
-
-startTrade();
+const healthPort =
+  process.env.POLLER_HEALTH_PORT ??
+  (process.env.RAILWAY_SERVICE_ID ? process.env.PORT : undefined);
+if (healthPort)
+  Bun.serve({
+    port: Number(healthPort),
+    fetch(request) {
+      const url = new URL(request.url);
+      const ready =
+        Date.now() - lastTradeAt < 30000 &&
+        !lastError &&
+        !sourceHalted &&
+        lastFlushAt > 0;
+      return Response.json(
+        {
+          status: "ok",
+          ready,
+          pending: spoolSize(),
+          lastTradeAt,
+          lastFlushAt,
+          downstreamError: !!lastError,
+          sourceHalted,
+          revision: process.env.RAILWAY_GIT_COMMIT_SHA ?? "local",
+        },
+        { status: url.pathname === "/ready" && !ready ? 503 : 200 },
+      );
+    },
+  });

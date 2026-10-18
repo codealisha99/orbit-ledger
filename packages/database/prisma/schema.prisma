@@ -18,7 +18,7 @@ model Trade {
   quantity  Decimal  @db.Decimal(20, 8) // 20 digits allowed and 8 digits after decimal
 
   @@id([id, timestamp])
-  @@unique([tradeId, timestamp]) // Required for TimescaleDB hypertable
+  @@unique([symbol, tradeId, timestamp]) // Required for TimescaleDB hypertable
   @@index([symbol, timestamp]) // for quick indexing and finding
 }
 
@@ -26,7 +26,7 @@ model Trade {
 // Trade so years of candles don't inflate the live trade tape.
 model MarketCandle {
   symbol       String   @db.VarChar(12)
-  interval     String   @db.VarChar(2)
+  interval     String   @db.VarChar(3)
   timestamp    DateTime @db.Timestamptz(3)
   open         BigInt
   high         BigInt
@@ -45,7 +45,8 @@ model User {
   userId        String   @id
   email         String   @unique
   password      String   // Empty string for OAuth users
-  balanceCents  Int      @default(500000)
+  version       Int      @default(0)
+  balanceCents  Float      @default(500000)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -61,20 +62,26 @@ model User {
 
 // Closed trading positions with PnL
 model ClosedOrder {
+  feesRecorded Boolean @default(false)
+  positionId String?
+  notionalCents Float @default(0)
+  entryFeeCents Float @default(0)
+  exitFeeCents Float @default(0)
+  netPnlCents Float @default(0)
   orderId          String   @id
   userId           String
   asset            String
   type             String
-  margin           Int
-  initialMargin    Int      // Original margin when opened
-  addedMargin      Int      @default(0) // Additional margin added
+  margin           Float
+  initialMargin    Float      // Original margin when opened
+  addedMargin      Float      @default(0) // Additional margin added
   leverage         Int
-  openPrice        Int
-  closePrice       Int
-  liquidationPrice Int
-  takeProfit       Int?
-  stopLoss         Int?
-  pnl              Int
+  openPrice        Float
+  closePrice       Float
+  liquidationPrice Float
+  takeProfit       Float?
+  stopLoss         Float?
+  pnl              Float
   closeReason      String
   closeMessage     String?
   openedAt         DateTime
@@ -83,9 +90,9 @@ model ClosedOrder {
 
   // Trailing stop loss fields (JSON stored as String for simplicity)
   trailingStopLossEnabled       Boolean @default(false)
-  trailingStopLossDistance      Int?
-  trailingStopLossHighestPrice  Int?
-  trailingStopLossLowestPrice   Int?
+  trailingStopLossDistance      Float?
+  trailingStopLossHighestPrice  Float?
+  trailingStopLossLowestPrice   Float?
 
   @@index([userId])
   @@index([closedAt])
@@ -96,7 +103,7 @@ model ClosedOrder {
 model UserSnapshot {
   id           Int      @id @default(autoincrement())
   userId       String
-  balanceCents Int
+  balanceCents Float
   snapshotAt   DateTime @default(now())
 
   @@index([userId, snapshotAt])
@@ -110,22 +117,22 @@ model OrderSnapshot {
   userId           String
   asset            String
   type             String
-  margin           Int
-  initialMargin    Int      // Original margin when opened
-  addedMargin      Int      @default(0) // Additional margin added
+  margin           Float
+  initialMargin    Float      // Original margin when opened
+  addedMargin      Float      @default(0) // Additional margin added
   leverage         Int
-  openPrice        Int
-  liquidationPrice Int
-  takeProfit       Int?
-  stopLoss         Int?
+  openPrice        Float
+  liquidationPrice Float
+  takeProfit       Float?
+  stopLoss         Float?
   openedAt         DateTime
   snapshotAt       DateTime @default(now())
 
   // Trailing stop loss fields
   trailingStopLossEnabled       Boolean @default(false)
-  trailingStopLossDistance      Int?
-  trailingStopLossHighestPrice  Int?
-  trailingStopLossLowestPrice   Int?
+  trailingStopLossDistance      Float?
+  trailingStopLossHighestPrice  Float?
+  trailingStopLossLowestPrice   Float?
 
   @@index([orderId, snapshotAt])
   @@map("order_snapshots")
@@ -133,27 +140,31 @@ model OrderSnapshot {
 
 // Currently active orders (persistent state)
 model ActiveOrder {
+  feesRecorded Boolean @default(true)
+  needsReview Boolean @default(false)
+  notionalCents Float
+  entryFeeCents Float @default(0)
   orderId          String   @id
   userId           String
   asset            String
   type             String
-  margin           Int
-  initialMargin    Int      // Original margin when opened
-  addedMargin      Int      @default(0) // Additional margin added
+  margin           Float
+  initialMargin    Float      // Original margin when opened
+  addedMargin      Float      @default(0) // Additional margin added
   leverage         Int
-  openPrice        Int
-  liquidationPrice Int
-  takeProfit       Int?
-  stopLoss         Int?
+  openPrice        Float
+  liquidationPrice Float
+  takeProfit       Float?
+  stopLoss         Float?
   openedAt         DateTime
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
   // Trailing stop loss fields
   trailingStopLossEnabled       Boolean @default(false)
-  trailingStopLossDistance      Int?
-  trailingStopLossHighestPrice  Int?
-  trailingStopLossLowestPrice   Int?
+  trailingStopLossDistance      Float?
+  trailingStopLossHighestPrice  Float?
+  trailingStopLossLowestPrice   Float?
 
   @@index([userId])
   @@map("active_orders")
@@ -170,4 +181,43 @@ model PlatformProfit {
   createdAt     DateTime @default(now())
 
   @@map("platform_profit")
+}
+
+// Mutation receipt and outbox: written in the same account transaction.
+model AccountEvent {
+  id String @id @default(uuid())
+  userId String
+  version Int
+  kind String
+  positionId String?
+  payload Json
+  createdAt DateTime @default(now())
+  deliveredAt DateTime?
+  @@unique([userId, version])
+  @@index([userId, createdAt])
+  @@index([deliveredAt, createdAt])
+}
+model MutationReceipt {
+  userId String
+  key String
+  fingerprint String
+  response Json
+  createdAt DateTime @default(now())
+  @@id([userId, key])
+}
+model EquitySnapshot {
+  id String @id @default(uuid())
+  userId String
+  availableCents Float
+  reservedCents Float
+  pnlCents Float?
+  equityCents Float?
+  stale Boolean
+  createdAt DateTime @default(now())
+  @@index([userId, createdAt])
+}
+model LoginCode {
+  code String @id
+  userId String
+  expiresAt DateTime
 }

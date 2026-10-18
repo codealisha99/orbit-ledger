@@ -5,7 +5,8 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".next/**", "!.next/cache/**"]
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"],
+      "env": ["API_URL", "NEXT_PUBLIC_API_URL", "NEXT_PUBLIC_WEBSOCKET_URL"]
     },
     "lint": {
       "dependsOn": ["^lint"]
@@ -17,5 +18,25 @@
       "cache": false,
       "persistent": true
     }
-  }
+  },
+  "globalPassThroughEnv": [
+    "DATABASE_URL",
+    "REDIS_URL",
+    "RATE_LIMIT_REDIS_URL",
+    "JWT_SECRET",
+    "PORT",
+    "WEBSOCKET_PORT",
+    "FRONTEND_URL",
+    "CORS_ORIGINS",
+    "INITIAL_BALANCE_USD",
+    "GOOGLE_*",
+    "GITHUB_*",
+    "KAFKA_BROKERS",
+    "API_URL",
+    "NEXT_PUBLIC_*",
+    "DATABASE_POOL_SIZE",
+    "INGEST_SPOOL_PATH",
+    "POLLER_HEALTH_PORT",
+    "RAILWAY_*"
+  ]
 }

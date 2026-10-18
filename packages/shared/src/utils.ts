@@ -1,7 +1,7 @@
 import { PRICE_SCALE, USD_SCALE } from "./constants";
 
 export function toInternalPrice(price: number): number {
-  return Math.floor(price * PRICE_SCALE);
+  return Math.round(price * PRICE_SCALE);
 }
 
 export function fromInternalPrice(price: number): number {
@@ -9,7 +9,7 @@ export function fromInternalPrice(price: number): number {
 }
 
 export function toInternalUSD(usd: number): number {
-  return Math.floor(usd * USD_SCALE);
+  return Math.round(usd * USD_SCALE);
 }
 
 export function fromInternalUSD(cents: number): number {

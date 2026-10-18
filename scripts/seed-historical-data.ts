@@ -1,25 +1,47 @@
 import { prisma } from "../packages/database/src/index";
-import { toInternalPrice } from "../packages/shared/src/utils";
+import {
+  toInternalPrice,
+  bucketStart,
+  type CandleInterval,
+} from "../packages/shared/src/index";
 
 const BASE_URL = "https://data-api.binance.vision/api/v3/klines";
-const START_TIME = Date.UTC(2019, 0, 1);
+const START_TIME = process.env.HISTORY_START
+  ? Date.parse(process.env.HISTORY_START)
+  : Date.UTC(2019, 0, 1);
+if (!Number.isFinite(START_TIME)) throw new Error("Invalid HISTORY_START");
 const BATCH_LIMIT = 1000;
 const SYMBOLS = ["BTC", "ETH", "SOL"] as const;
-const INTERVALS = ["1d", "1w"] as const;
+const INTERVALS = (process.env.HISTORY_INTERVALS?.split(",") ?? [
+  "1d",
+  "1w",
+]) as CandleInterval[];
+if (
+  INTERVALS.some(
+    (v) => !["1m", "5m", "15m", "1h", "4h", "1d", "1w"].includes(v),
+  )
+)
+  throw new Error("Invalid HISTORY_INTERVALS");
 
 type Symbol = (typeof SYMBOLS)[number];
 type Interval = (typeof INTERVALS)[number];
 type BinanceKline = [
-  number, string, string, string, string, string, number, string, number,
-  string, string, string,
+  number,
+  string,
+  string,
+  string,
+  string,
+  string,
+  number,
+  string,
+  number,
+  string,
+  string,
+  string,
 ];
 
 function currentBucketStart(interval: Interval, now: Date): Date {
-  if (interval === "1d") {
-    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  }
-  const daysSinceMonday = (now.getUTCDay() + 6) % 7;
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysSinceMonday));
+  return new Date(bucketStart(now.getTime() / 1000, interval) * 1000);
 }
 
 async function fetchKlines(
@@ -39,31 +61,46 @@ async function fetchKlines(
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
     try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(20_000),
+      });
       if (response.status === 429 || response.status >= 500) {
         if (attempt === 4) {
-          throw new Error(`Binance request failed after retries (${response.status}): ${await response.text()}`);
+          throw new Error(
+            `Binance request failed after retries (${response.status}): ${await response.text()}`,
+          );
         }
         const waitMs = Math.min(1000 * 2 ** attempt, 30_000);
-        console.warn(`[history] Binance returned ${response.status}; retrying in ${waitMs / 1000}s`);
+        console.warn(
+          `[history] Binance returned ${response.status}; retrying in ${waitMs / 1000}s`,
+        );
         await Bun.sleep(waitMs);
         continue;
       }
       if (!response.ok) {
-        throw new Error(`Binance request failed (${response.status}): ${await response.text()}`);
+        throw new Error(
+          `Binance request failed (${response.status}): ${await response.text()}`,
+        );
       }
-      return await response.json() as BinanceKline[];
+      return (await response.json()) as BinanceKline[];
     } catch (error) {
       if (attempt === 4) throw error;
       const waitMs = Math.min(1000 * 2 ** attempt, 30_000);
-      console.warn(`[history] Request failed; retrying in ${waitMs / 1000}s:`, error);
+      console.warn(
+        `[history] Request failed; retrying in ${waitMs / 1000}s:`,
+        error,
+      );
       await Bun.sleep(waitMs);
     }
   }
   return [];
 }
 
-function toCandleData(symbol: Symbol, interval: Interval, rows: BinanceKline[]) {
+function toCandleData(
+  symbol: Symbol,
+  interval: Interval,
+  rows: BinanceKline[],
+) {
   return rows.map((row) => ({
     symbol,
     interval,
@@ -78,7 +115,11 @@ function toCandleData(symbol: Symbol, interval: Interval, rows: BinanceKline[]) 
   }));
 }
 
-async function saveCandles(symbol: Symbol, interval: Interval, rows: BinanceKline[]) {
+async function saveCandles(
+  symbol: Symbol,
+  interval: Interval,
+  rows: BinanceKline[],
+) {
   if (rows.length === 0) return 0;
 
   const candles = toCandleData(symbol, interval, rows);
@@ -116,7 +157,7 @@ async function saveCandles(symbol: Symbol, interval: Interval, rows: BinanceKlin
 
 async function backfill(symbol: Symbol, interval: Interval) {
   const pair = `${symbol}USDT`;
-  let startTime = START_TIME;
+  let startTime = bucketStart(START_TIME / 1000, interval) * 1000;
   let totalSaved = 0;
   let pages = 0;
   const endTime = Date.now();
@@ -128,32 +169,45 @@ async function backfill(symbol: Symbol, interval: Interval) {
     totalSaved += await saveCandles(symbol, interval, rows);
     pages += 1;
     const nextStart = rows[rows.length - 1][0] + 1;
-    if (nextStart <= startTime) throw new Error(`Binance returned a non-advancing ${interval} page for ${pair}`);
+    if (nextStart <= startTime)
+      throw new Error(
+        `Binance returned a non-advancing ${interval} page for ${pair}`,
+      );
     startTime = nextStart;
-    console.log(`[history] ${pair} ${interval}: page ${pages}, ${rows.length} candles (${totalSaved} new or refreshed)`);
+    console.log(
+      `[history] ${pair} ${interval}: page ${pages}, ${rows.length} candles (${totalSaved} new or refreshed)`,
+    );
     if (rows.length < BATCH_LIMIT) break;
     await Bun.sleep(150);
   }
 
-  console.log(`[history] Finished ${pair} ${interval}; saved ${totalSaved} candles`);
+  console.log(
+    `[history] Finished ${pair} ${interval}; saved ${totalSaved} candles`,
+  );
 }
 
 async function main() {
-  console.log("Backfilling Binance daily and weekly candles from 2019-01-01.");
-  console.log("SOL history begins when Binance first listed SOLUSDT; no earlier spot candles exist.");
+  console.log(
+    `Backfilling ${INTERVALS.join(", ")} bars since ${new Date(START_TIME).toISOString()}. Completed bars are deduplicated on reruns.`,
+  );
+  console.log(
+    "SOL history begins when Binance first listed SOLUSDT; no earlier spot candles exist.",
+  );
   for (const symbol of SYMBOLS) {
     for (const interval of INTERVALS) {
       await backfill(symbol, interval);
     }
   }
 
-  const summary = await prisma.$queryRaw<Array<{
-    symbol: string;
-    interval: string;
-    count: bigint;
-    earliest: Date;
-    latest: Date;
-  }>>`
+  const summary = await prisma.$queryRaw<
+    Array<{
+      symbol: string;
+      interval: string;
+      count: bigint;
+      earliest: Date;
+      latest: Date;
+    }>
+  >`
     SELECT symbol, interval, COUNT(*) AS count,
            MIN(timestamp) AS earliest, MAX(timestamp) AS latest
     FROM market_candles
@@ -162,7 +216,9 @@ async function main() {
   `;
 
   for (const row of summary) {
-    console.log(`[history] ${row.symbol} ${row.interval}: ${row.count} bars, ${row.earliest.toISOString()} → ${row.latest.toISOString()}`);
+    console.log(
+      `[history] ${row.symbol} ${row.interval}: ${row.count} bars, ${row.earliest.toISOString()} → ${row.latest.toISOString()}`,
+    );
   }
 }
 

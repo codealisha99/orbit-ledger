@@ -110,10 +110,9 @@ export class SubscriptionManager {
       console.log("Client Not Exsited to send data ");
       return;
     }
-    clientInfo.userId=userId;
-    console.log("The User is SUcessfully Authenticated")
+    clientInfo.userId = userId;
+    console.log("The User is SUcessfully Authenticated");
   }
-
 
   broadcast(asset: Asset, message: ServerMessage): void {
     if (!SUPPORTED_ASSETS.includes(asset)) {
@@ -129,13 +128,16 @@ export class SubscriptionManager {
     for (const clientId of clientSub) {
       const ws = this.clientIdToWebSocket.get(clientId);
       try {
-        if (ws) {
+        if (ws?.readyState === WebSocket.OPEN) {
+          if (ws.bufferedAmount > 1024 * 1024) {
+            ws.close(1013, "Slow connection; reconnect for a recent snapshot");
+            continue;
+          }
           ws.send(strServerMessage);
         }
       } catch (err) {
         console.error(`Failed to send to client ${clientId}:`, err);
       }
     }
-
   }
 }

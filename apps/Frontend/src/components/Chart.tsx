@@ -1,588 +1,493 @@
 "use client";
-
 import {
   createChart,
-  ColorType,
   CandlestickSeries,
   LineSeries,
+  HistogramSeries,
+  ColorType,
   type IChartApi,
-  type CandlestickData,
-  type CandlestickSeriesOptions,
-  type CandlestickStyleOptions,
-  type DeepPartial,
   type ISeriesApi,
-  type SeriesOptionsCommon,
+  type CandlestickData,
+  type UTCTimestamp,
   type Time,
-  type TickMarkType,
-  type WhitespaceData,
 } from "lightweight-charts";
 import { useEffect, useRef, useState } from "react";
-import type { SYMBOL } from "../utils/constants";
-import { Duration } from "../utils/constants";
-import { Signalingmanager } from "../utils/subscription_manager";
-import {
-  getChartData,
-  processRealupdate,
-  resetLastCandle,
-  type RealtimeUpdate,
-} from "../utils/chart_agg_ws_api";
-import type { Trade } from "./AskBidsTable";
-import { toDisplayPrice } from "../utils/utils";
+import { bucketStart, type CandleInterval } from "@orbitledger/shared";
+import { api } from "@/lib/client";
+import { useMarket, type Symbol } from "@/lib/market";
+import type { Position } from "@/lib/account";
 
-type HistoryRange = "1D" | "3D" | "1W" | "3W" | "1M" | "3M" | "1Y" | "ALL";
-
-const HISTORY_RANGES: Record<Duration, HistoryRange[]> = {
-  "1m": ["1D", "3D", "1W", "3W"],
-  "5m": ["1D", "1W", "3W", "1M"],
-  "15m": ["1W", "3W", "1M", "3M"],
-  "1h": ["1W", "3W", "1M", "3M", "1Y"],
-  "4h": ["1W", "3W", "1M", "3M", "1Y"],
-  "1d": ["1W", "3W", "1M", "3M", "1Y", "ALL"],
-  "1w": ["1W", "3W", "1M", "3M", "1Y", "ALL"],
+export type Range = "1D" | "1W" | "3W" | "1M" | "3M" | "1Y" | "ALL";
+export const rangeDays: Record<Range, number> = {
+  "1D": 1,
+  "1W": 7,
+  "3W": 21,
+  "1M": 30,
+  "3M": 90,
+  "1Y": 365,
+  ALL: 3000,
 };
-
-function getHistoryStartTime(range: HistoryRange): number {
-  const now = Date.now();
-  if (range === "ALL") return Math.floor(Date.UTC(2019, 0, 1) / 1000);
-  const durationMs: Record<Exclude<HistoryRange, "ALL">, number> = {
-    "1D": 24 * 60 * 60 * 1000,
-    "3D": 3 * 24 * 60 * 60 * 1000,
-    "1W": 7 * 24 * 60 * 60 * 1000,
-    "3W": 21 * 24 * 60 * 60 * 1000,
-    "1M": 30 * 24 * 60 * 60 * 1000,
-    "3M": 90 * 24 * 60 * 60 * 1000,
-    "1Y": 365 * 24 * 60 * 60 * 1000,
-  };
-  return Math.floor((now - durationMs[range]) / 1000);
+export const defaultInterval: Record<Range, CandleInterval> = {
+  "1D": "15m",
+  "1W": "1h",
+  "3W": "4h",
+  "1M": "4h",
+  "3M": "1d",
+  "1Y": "1d",
+  ALL: "1w",
+};
+interface Bar extends CandlestickData<UTCTimestamp> {
+  volume?: string;
 }
-
-export default function ChartComponent({
-  duration,
+interface Coverage {
+  actualStart: number | null;
+  actualEnd: number | null;
+  complete: boolean;
+  source: string;
+  count: number;
+}
+export default function Chart({
   symbol,
-  onPriceUpdate,
+  interval,
+  range,
+  style,
+  onInterval,
+  onRange,
+  onStyle,
+  positions = [],
 }: {
-  duration: Duration;
-  symbol: SYMBOL;
-  onPriceUpdate?: (prices: { bidPrice: number; askPrice: number }) => void;
+  symbol: Symbol;
+  interval: CandleInterval;
+  range: Range;
+  style: "candles" | "line";
+  onInterval: (v: CandleInterval) => void;
+  onRange: (v: Range) => void;
+  onStyle: (v: "candles" | "line") => void;
+  positions?: Position[];
 }) {
-  const chartContainerRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<IChartApi | null>(null);
-  const fitChartToDataRef = useRef<() => void>(() => {});
-  const [tooltip, setTooltip] = useState<string | null>(null);
-  const [tooltipVisible, setTooltipVisible] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(true);
+  const host = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLElement>(null);
+  const chart = useRef<IChartApi | null>(null);
+  const candles = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const line = useRef<ISeriesApi<"Line"> | null>(null);
+  const volume = useRef<ISeriesApi<"Histogram"> | null>(null);
+  const bars = useRef<Bar[]>([]);
+  const byTime = useRef(new Map<number, Bar>());
+  const hovering = useRef(false);
+  const following = useRef(true);
+  const [hover, setHover] = useState<Bar | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hasNoData, setHasNoData] = useState(false);
-  const [reloadKey, setReloadKey] = useState(0);
-  const [followMode, setFollowMode] = useState<boolean>(true);
-  const [historyRange, setHistoryRange] = useState<HistoryRange>("1D");
-  const [chartType, setChartType] = useState<"candles" | "line">("candles");
-  const selectedHistoryRange = HISTORY_RANGES[duration].includes(historyRange)
-    ? historyRange
-    : duration === Duration.candles_1w
-      ? "3M"
-      : duration === Duration.candles_1d
-        ? "1M"
-      : HISTORY_RANGES[duration][0];
-  const [theme, setTheme] = useState("dark");
-  const tooltipTimeoutRef = useRef<number | null>(null);
-  const userScrolledRef = useRef<boolean>(false);
-  const lastCandleTimeRef = useRef<number>(0);
-  const followModeRef = useRef(true);
-  const latestLogicalIndexRef = useRef(0);
-  const isHoveringChartRef = useRef(false);
-  const [hoveredCandle, setHoveredCandle] = useState<CandlestickData<Time> | null>(null);
-  followModeRef.current = followMode;
-
+  const [coverage, setCoverage] = useState<Coverage | null>(null);
+  const [retry, setRetry] = useState(0);
+  const [follow, setFollow] = useState(true);
+  const [showVolume, setShowVolume] = useState(false);
+  const market = useMarket();
+  const quote = market.quotes[symbol];
   useEffect(() => {
-    const root = document.documentElement;
-    const updateTheme = () => setTheme(root.dataset.theme || "dark");
-    const observer = new MutationObserver(updateTheme);
-    observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
-    updateTheme();
-    return () => observer.disconnect();
+    if (!host.current) return;
+    const c = createChart(host.current, {
+      autoSize: true,
+      layout: {
+        background: { type: ColorType.Solid, color: "#000000" },
+        textColor: "#9b9ba4",
+        attributionLogo: false,
+      },
+      grid: {
+        vertLines: { color: "#151519" },
+        horzLines: { color: "#151519" },
+      },
+      rightPriceScale: { borderColor: "#242429" },
+      timeScale: {
+        timeVisible: true,
+        secondsVisible: false,
+        minBarSpacing: 0.01,
+        borderColor: "#242429",
+      },
+      localization: {
+        timeFormatter: (time: Time) =>
+          new Date(Number(time) * 1000).toLocaleString("en-GB", {
+            timeZone: "UTC",
+            dateStyle: "medium",
+            timeStyle: "short",
+          }),
+      },
+    });
+    chart.current = c;
+    candles.current = c.addSeries(CandlestickSeries, {
+      upColor: "#4c94ff",
+      downColor: "#ed6969",
+      wickUpColor: "#4c94ff",
+      wickDownColor: "#ed6969",
+      borderVisible: false,
+      priceFormat: { type: "price", precision: 2, minMove: 0.01 },
+    });
+    line.current = c.addSeries(LineSeries, {
+      color: "#4c94ff",
+      lineWidth: 2,
+      visible: false,
+    });
+    volume.current = c.addSeries(HistogramSeries, {
+      priceFormat: { type: "volume" },
+      priceScaleId: "volume",
+      visible: false,
+    });
+    c.priceScale("volume").applyOptions({
+      scaleMargins: { top: 0.82, bottom: 0 },
+      visible: false,
+    });
+    c.subscribeCrosshairMove((param) => {
+      hovering.current = param.time !== undefined;
+      setHover(
+        param.time !== undefined
+          ? (byTime.current.get(Number(param.time)) ?? null)
+          : (bars.current.at(-1) ?? null),
+      );
+    });
+    const theme = () => {
+      const css = getComputedStyle(document.documentElement);
+      const val = (name: string) => css.getPropertyValue(name).trim();
+      candles.current?.applyOptions({
+        upColor: val("--nt-accent"),
+        wickUpColor: val("--nt-accent"),
+        downColor: val("--nt-sell"),
+        wickDownColor: val("--nt-sell"),
+      });
+      line.current?.applyOptions({ color: val("--nt-accent") });
+      volume.current?.applyOptions({ color: val("--nt-accent") });
+      c.applyOptions({
+        layout: {
+          background: { type: ColorType.Solid, color: val("--nt-bg") },
+          textColor: val("--nt-muted"),
+        },
+        grid: {
+          vertLines: { color: val("--nt-grid") },
+          horzLines: { color: val("--nt-grid") },
+        },
+        rightPriceScale: { borderColor: val("--nt-border") },
+        timeScale: { borderColor: val("--nt-border") },
+      });
+    };
+    theme();
+    const observer = new MutationObserver(theme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    return () => {
+      observer.disconnect();
+      c.remove();
+      chart.current = null;
+    };
   }, []);
-
   useEffect(() => {
-    if (tooltip) {
-      setTooltipVisible(true);
-      if (tooltipTimeoutRef.current) {
-        clearTimeout(tooltipTimeoutRef.current);
-      }
-      tooltipTimeoutRef.current = window.setTimeout(() => {
-        setTooltipVisible(false);
-        setTooltip(null);
-      }, 1500);
-    }
-    return () => {
-      if (tooltipTimeoutRef.current) {
-        clearTimeout(tooltipTimeoutRef.current);
-      }
-    };
-  }, [tooltip]);
-
+    candles.current?.applyOptions({ visible: style === "candles" });
+    line.current?.applyOptions({ visible: style === "line" });
+  }, [style]);
   useEffect(() => {
-    if (!chartContainerRef.current || !symbol) return;
-
-    let candlestickSeries: ISeriesApi<
-      "Candlestick",
-      Time,
-      CandlestickData<Time> | WhitespaceData<Time>,
-      CandlestickSeriesOptions,
-      DeepPartial<CandlestickStyleOptions & SeriesOptionsCommon>
-    > | null = null;
-    let lineSeries: ISeriesApi<"Line"> | null = null;
-    let chart: IChartApi | null = null;
-    let unwatch: (() => void) | null = null;
-    let isCleanedUp = false;
-
-    const initChart = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        setHasNoData(false);
-
-        const styles = getComputedStyle(document.documentElement);
-        const surface = styles.getPropertyValue("--nt-surface2").trim();
-        const foreground = styles.getPropertyValue("--nt-text").trim();
-        const accent = styles.getPropertyValue("--nt-accent").trim();
-        chart = createChart(chartContainerRef.current!, {
-          layout: {
-            background: {
-              type: ColorType.VerticalGradient,
-              topColor: surface,
-              bottomColor: surface,
-            },
-            textColor: foreground,
-          },
-          grid: {
-            vertLines: { color: theme === "dark" ? "rgba(148,163,184,0.09)" : "rgba(71,85,105,0.12)" },
-            horzLines: { color: theme === "dark" ? "rgba(148,163,184,0.09)" : "rgba(71,85,105,0.12)" },
-          },
-          width: chartContainerRef.current!.clientWidth,
-          height: chartContainerRef.current!.clientHeight,
-          rightPriceScale: { borderColor: styles.getPropertyValue("--nt-border").trim(), scaleMargins: { top: 0.08, bottom: 0.08 } },
-          timeScale: {
-            timeVisible: duration !== Duration.candles_1d && duration !== Duration.candles_1w,
-            secondsVisible: false,
-            barSpacing: 8,
-            minBarSpacing: 4,
-            rightOffset: 6,
-            borderColor: styles.getPropertyValue("--nt-border").trim(),
-            lockVisibleTimeRangeOnResize: true,
-            tickMarkFormatter: (timestamp: Time, _tickMarkType: TickMarkType, locale: string) => {
-              const date = typeof timestamp === "number"
-                ? new Date(timestamp * 1000)
-                : typeof timestamp === "string"
-                  ? new Date(timestamp)
-                  : new Date(Date.UTC(timestamp.year, timestamp.month - 1, timestamp.day));
-              if (duration === Duration.candles_1w || duration === Duration.candles_1d) {
-                return date.toLocaleDateString(locale, { month: "short", day: "numeric", year: "2-digit", timeZone: "UTC" });
-              }
-              return date.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
-            },
-          },
-          localization: {
-            timeFormatter: (timestamp: Time) => {
-              const date = typeof timestamp === "number"
-                ? new Date(timestamp * 1000)
-                : typeof timestamp === "string"
-                  ? new Date(timestamp)
-                  : new Date(Date.UTC(timestamp.year, timestamp.month - 1, timestamp.day));
-              if (duration === Duration.candles_1w || duration === Duration.candles_1d) {
-                return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "2-digit", timeZone: "UTC" });
-              }
-              return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
-            },
-          },
-          crosshair: {
-            vertLine: { color: `${accent}80`, labelBackgroundColor: accent },
-            horzLine: { color: `${accent}80`, labelBackgroundColor: accent },
-          },
-        });
-
-        if (chartType === "candles") candlestickSeries = chart.addSeries(CandlestickSeries, {
-          upColor: accent,
-          downColor: "#EB483F",
-          borderVisible: false,
-          wickUpColor: accent,
-          wickDownColor: "#EB483F",
-          lastValueVisible: true,
-          priceLineVisible: true,
-          priceLineColor: accent,
-          priceLineStyle: 2,
-          priceLineWidth: 1,
-        });
-        else lineSeries = chart.addSeries(LineSeries, {
-          color: accent,
-          lineWidth: 2,
-          lastValueVisible: true,
-          priceLineVisible: true,
-          priceLineColor: accent,
-          priceLineStyle: 2,
-          priceLineWidth: 1,
-          crosshairMarkerVisible: true,
-          crosshairMarkerRadius: 4,
-        });
-
-        const tickWrapper = (trade: Trade) => {
-          if (isCleanedUp) {
-            return;
-          }
-
-          if (!trade.symbol || trade.symbol !== symbol) {
-            return;
-          }
-
-          if (!trade.bidPrice || !trade.askPrice || isNaN(trade.bidPrice) || isNaN(trade.askPrice)) {
-            console.warn(`[CHART] Invalid price data for ${symbol}:`, trade);
-            return;
-          }
-
-          const prices = { bidPrice: trade.bidPrice || 0, askPrice: trade.askPrice || 0 };
-          if (onPriceUpdate && prices.bidPrice > 0 && prices.askPrice > 0) {
-            onPriceUpdate(prices);
-          }
-
-          const tick: RealtimeUpdate = {
-            symbol: trade.symbol,
-            bidPrice: trade.bidPrice,
-            askPrice: trade.askPrice,
-            time: Math.floor(Date.now() / 1000),
-          };
-
-          const candle = processRealupdate(tick, duration);
-
-          if (candle && (candlestickSeries || lineSeries)) {
-            const isNewCandle = Number(candle.time) > lastCandleTimeRef.current;
-            if (isNewCandle) {
-              lastCandleTimeRef.current = Number(candle.time);
-              latestLogicalIndexRef.current += 1;
-            }
-            if (candlestickSeries) candlestickSeries.update(candle);
-            if (lineSeries) lineSeries.update({ time: candle.time, value: candle.close });
-            if (!isHoveringChartRef.current) setHoveredCandle(candle);
-            if (isNewCandle && followModeRef.current && !userScrolledRef.current && chart) {
-              chart.timeScale().scrollToRealTime();
-            }
-          } else {
-            console.warn(`[CHART] Failed to update candle - candle:`, candle, "series:", !!(candlestickSeries || lineSeries));
-          }
-        };
-
-        const rawData = await getChartData(symbol, duration, getHistoryStartTime(selectedHistoryRange)) as CandlestickData<Time>[];
-        if (isCleanedUp) return;
-        setHasNoData(rawData.length === 0);
-
-        if (candlestickSeries) {
-          candlestickSeries.setData([]);
-          candlestickSeries.setData(rawData);
-          const latest = rawData[rawData.length - 1] as CandlestickData<Time> | undefined;
-          setHoveredCandle(latest ?? null);
-          latestLogicalIndexRef.current = Math.max(0, rawData.length - 1);
-          lastCandleTimeRef.current = latest ? Number(latest.time) : 0;
-        }
-        if (lineSeries) {
-          lineSeries.setData(rawData.map(({ time, close }) => ({ time, value: close })));
-          const latest = rawData[rawData.length - 1];
-          setHoveredCandle(latest ?? null);
-          latestLogicalIndexRef.current = Math.max(0, rawData.length - 1);
-          lastCandleTimeRef.current = latest ? Number(latest.time) : 0;
-        }
-        if (chart) {
-          const dataLength = rawData.length;
-          const normalVisibleCandles = duration === Duration.candles_1w ? 40 : duration === Duration.candles_1d ? 45 : 75;
-          const visibleCandles = selectedHistoryRange === "ALL" && dataLength >= 20
-            ? dataLength + 6
-            : normalVisibleCandles;
-          fitChartToDataRef.current = () => {
-            if (!chart || (!candlestickSeries && !lineSeries)) return;
-            const seriesLength = (candlestickSeries ?? lineSeries)!.data().length;
-            if (seriesLength < 20) {
-              const rangeEnd = seriesLength + 6;
-              chart.timeScale().setVisibleLogicalRange({ from: rangeEnd - visibleCandles, to: rangeEnd });
-            } else {
-              chart.timeScale().fitContent();
-            }
-          };
-          if (dataLength > 0) {
-            const to = dataLength + 6;
-            chart.timeScale().setVisibleLogicalRange({ from: to - visibleCandles, to });
-            chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
-              if (!range) return;
-              const shouldPause = range.to < latestLogicalIndexRef.current - 0.5;
-              userScrolledRef.current = shouldPause;
-              if (followModeRef.current === shouldPause) {
-                followModeRef.current = !shouldPause;
-                setFollowMode(!shouldPause);
-              }
-            });
-          } else {
-            chart.timeScale().fitContent();
-          }
-
-          if (candlestickSeries || lineSeries) {
-            chart.subscribeCrosshairMove((param) => {
-              isHoveringChartRef.current = param.time !== undefined;
-              if (candlestickSeries) {
-                const data = param.seriesData.get(candlestickSeries);
-                if (data && "open" in data) setHoveredCandle(data as CandlestickData<Time>);
-                else setHoveredCandle((candlestickSeries.data().at(-1) as CandlestickData<Time> | undefined) ?? null);
-              } else if (lineSeries) {
-                const lineData = param.seriesData.get(lineSeries);
-                const lineValue = lineData && "value" in lineData ? lineData.value : undefined;
-                if (lineValue !== undefined) {
-                  const latest = rawData[rawData.length - 1];
-                  if (latest) setHoveredCandle({ ...latest, close: lineValue });
-                } else setHoveredCandle(rawData[rawData.length - 1] ?? null);
-              }
-            });
-          }
-        }
-
-        const signalingManager = Signalingmanager.getInstance();
-        unwatch = signalingManager.watch(symbol, tickWrapper);
-        chartRef.current = chart;
+    volume.current?.applyOptions({ visible: showVolume });
+    chart.current?.applyOptions({
+      rightPriceScale: {
+        scaleMargins: { top: 0.08, bottom: showVolume ? 0.23 : 0.08 },
+      },
+    });
+  }, [showVolume]);
+  useEffect(() => {
+    const abort = new AbortController();
+    setLoading(true);
+    setError(null);
+    setCoverage(null);
+    setHover(null);
+    bars.current = [];
+    byTime.current.clear();
+    candles.current?.setData([]);
+    line.current?.setData([]);
+    volume.current?.setData([]);
+    const start =
+      range === "ALL"
+        ? Date.UTC(2019, 0, 1) / 1000
+        : Math.floor(Date.now() / 1000 - rangeDays[range] * 86400);
+    api<{ candles: Bar[]; meta: Coverage }>(
+      `asset/candles?asset=${symbol}&ts=${interval}&startTime=${start}&endTime=${Math.floor(Date.now() / 1000)}`,
+      { signal: abort.signal },
+    )
+      .then((data) => {
+        if (abort.signal.aborted) return;
+        bars.current = data.candles;
+        byTime.current = new Map(data.candles.map((b) => [Number(b.time), b]));
+        candles.current?.setData(data.candles);
+        line.current?.setData(
+          data.candles.map((b) => ({ time: b.time, value: b.close })),
+        );
+        volume.current?.setData(
+          data.candles.map((b) => ({
+            time: b.time,
+            value: Number(b.volume ?? 0),
+          })),
+        );
+        chart.current?.timeScale().fitContent();
+        following.current = true;
+        setFollow(true);
+        setHover(data.candles.at(-1) ?? null);
+        setCoverage(data.meta);
         setLoading(false);
-      } catch (err) {
-        if (isCleanedUp) return;
-
-        console.error("Failed to load chart data:", err);
-        setError("Failed to load chart data. Please try again.");
-        setLoading(false);
-      }
-    };
-
-    const handleResize = () => {
-      if (chartContainerRef.current && chart) {
-        const parent = chartContainerRef.current;
-        chart.applyOptions({
-          width: parent.clientWidth,
-          height: parent.clientHeight,
-        });
-      }
-    };
-
-    initChart();
-    const resizeObserver = new ResizeObserver(handleResize);
-    resizeObserver.observe(chartContainerRef.current);
-
+      })
+      .catch((err) => {
+        if (!abort.signal.aborted) {
+          setError(err.message);
+          setLoading(false);
+        }
+      });
+    return () => abort.abort();
+  }, [symbol, interval, range, retry, market.reconnects]);
+  useEffect(() => {
+    if (loading || !quote || quote.symbol !== symbol) return;
+    const time = bucketStart(
+      Math.floor(quote.time / 1000),
+      interval,
+    ) as UTCTimestamp;
+    const last = bars.current.at(-1);
+    if (last && time < last.time) return;
+    const price = quote.price / 10000;
+    const bar: Bar =
+      last?.time === time
+        ? {
+            ...last,
+            close: price,
+            high: Math.max(last.high, price),
+            low: Math.min(last.low, price),
+          }
+        : { time, open: price, high: price, low: price, close: price };
+    if (last?.time === time) bars.current[bars.current.length - 1] = bar;
+    else bars.current.push(bar);
+    byTime.current.set(Number(time), bar);
+    candles.current?.update(bar);
+    line.current?.update({ time, value: price });
+    if (!hovering.current) setHover(bar);
+    if (following.current && last?.time !== time)
+      chart.current?.timeScale().scrollToRealTime();
+  }, [quote, symbol, interval, loading]);
+  useEffect(() => {
+    const series = candles.current;
+    if (!series) return;
+    const lines = positions
+      .filter((p) => p.asset === symbol)
+      .flatMap<readonly [number | null, string]>(
+        (p) =>
+          [
+            [p.openPrice, `${p.type === "buy" ? "Long" : "Short"} entry`],
+            [p.takeProfit, "TP"],
+            [p.stopLoss, "SL"],
+            [p.liquidationPrice, "Liq"],
+          ] as const,
+      )
+      .filter(
+        (p): p is readonly [number, string] =>
+          typeof p[0] === "number" && p[0] > 0,
+      )
+      .map(([price, title]) =>
+        series.createPriceLine({
+          price: price / 10000,
+          title,
+          color: title === "Liq" ? "#ed6969" : "#727985",
+          lineWidth: 1,
+          lineStyle: 2,
+          axisLabelVisible: true,
+        }),
+      );
     return () => {
-      isCleanedUp = true;
-
-      if (unwatch) {
-        unwatch();
-        unwatch = null;
-      }
-
-      resizeObserver.disconnect();
-      resetLastCandle(symbol, duration);
-
-      if (chart) {
-        chart.remove();
-        chart = null;
-      }
-      fitChartToDataRef.current = () => {};
-
-      if (tooltipTimeoutRef.current) {
-        clearTimeout(tooltipTimeoutRef.current);
-      }
-      candlestickSeries = null;
-      lineSeries = null;
+      if (chart.current) lines.forEach((l) => series.removePriceLine(l));
     };
-  }, [duration, selectedHistoryRange, symbol, onPriceUpdate, theme, chartType, reloadKey]);
-
+  }, [positions, symbol]);
+  const pause = () => {
+    following.current = false;
+    setFollow(false);
+  };
+  const stamp = (time: number) =>
+    new Date(time * 1000).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    });
   return (
-    <div className="text-[var(--nt-text)] h-full w-full relative">
-      {tooltipVisible && tooltip && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 bg-[color:color-mix(in_srgb,var(--nt-surface)_90%,transparent)] backdrop-blur-sm border border-[var(--nt-border)] rounded-lg text-sm shadow-lg transition-opacity">
-          {tooltip}
+    <section
+      ref={panel}
+      className="chart-panel surface"
+      aria-label={`${symbol} price chart`}
+    >
+      <div className="chart-toolbar">
+        <label>
+          Candle interval{" "}
+          <select
+            aria-label="Candle interval"
+            value={interval}
+            onChange={(e) => onInterval(e.target.value as CandleInterval)}
+          >
+            {["1m", "5m", "15m", "1h", "4h", "1d", "1w"].map((v) => (
+              <option key={v}>{v}</option>
+            ))}
+          </select>
+        </label>
+        <div className="segmented" aria-label="Chart style">
+          {(["candles", "line"] as const).map((v) => (
+            <button
+              key={v}
+              aria-pressed={style === v}
+              onClick={() => onStyle(v)}
+            >
+              {v === "candles" ? "Candles" : "Line"}
+            </button>
+          ))}
+        </div>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={showVolume}
+            onChange={(e) => setShowVolume(e.target.checked)}
+          />
+          Volume (history)
+        </label>
+        <button
+          className="quiet"
+          aria-label="Zoom in chart"
+          onClick={() => {
+            const t = chart.current?.timeScale();
+            const r = t?.getVisibleLogicalRange();
+            if (t && r) {
+              const n = (r.to - r.from) * 0.15;
+              t.setVisibleLogicalRange({ from: r.from + n, to: r.to - n });
+            }
+          }}
+        >
+          +
+        </button>
+        <button
+          className="quiet"
+          aria-label="Zoom out chart"
+          onClick={() => {
+            const t = chart.current?.timeScale();
+            const r = t?.getVisibleLogicalRange();
+            if (t && r) {
+              const n = (r.to - r.from) * 0.15;
+              t.setVisibleLogicalRange({ from: r.from - n, to: r.to + n });
+            }
+          }}
+        >
+          −
+        </button>
+        <button
+          className="quiet fullscreen"
+          onClick={() => {
+            if (document.fullscreenElement) void document.exitFullscreen();
+            else void panel.current?.requestFullscreen();
+          }}
+        >
+          Fullscreen
+        </button>
+      </div>
+      <div className="ohlc" aria-live="off">
+        {(style === "candles"
+          ? [
+              ["O", hover?.open],
+              ["H", hover?.high],
+              ["L", hover?.low],
+              ["C", hover?.close],
+            ]
+          : [["Price", hover?.close]]
+        ).map(([label, value]) => (
+          <span key={String(label)}>
+            {label}{" "}
+            <b>
+              {typeof value === "number"
+                ? value.toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 4,
+                  })
+                : "—"}
+            </b>
+          </span>
+        ))}
+        <time>
+          {hover
+            ? new Date(Number(hover.time) * 1000).toLocaleString("en-GB", {
+                timeZone: "UTC",
+                dateStyle: "medium",
+                timeStyle: "short",
+              }) + " UTC"
+            : ""}
+        </time>
+      </div>
+      <div
+        className="chart-canvas"
+        ref={host}
+        onWheel={pause}
+        onPointerDown={pause}
+      />
+      {(loading || error || !coverage?.count) && (
+        <div className="chart-state" role="status">
+          {loading ? (
+            "Loading market history…"
+          ) : error ? (
+            <>
+              {error}
+              <button onClick={() => setRetry((n) => n + 1)}>
+                Retry history
+              </button>
+            </>
+          ) : (
+            "No stored history for this period. Try a different interval or range."
+          )}
         </div>
       )}
-      <div className="bg-[var(--nt-surface)] backdrop-blur-xl border border-[var(--nt-border)] rounded-xl overflow-hidden h-full w-full flex flex-col">
-        <div className="flex flex-wrap items-center justify-between gap-2 p-3 border-b border-[var(--nt-border)]">
-          <div>
-            <h2 className="text-lg font-semibold text-[var(--nt-text)]">{symbol}</h2>
-            <div className="text-sm text-[var(--nt-muted)]">
-              {duration === Duration.candles_1m && "1 minute"}
-              {duration === Duration.candles_5m && "5 minutes"}
-              {duration === Duration.candles_15m && "15 minutes"}
-              {duration === Duration.candles_1h && "1 hour"}
-              {duration === Duration.candles_4h && "4 hours"}
-              {duration === Duration.candles_1d && "1 day"}
-              {duration === Duration.candles_1w && "1 week"}
-            </div>
-          </div>
-          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-x-4 gap-y-1 px-2 font-mono text-[11px] sm:text-xs" aria-label={chartType === "candles" ? "Selected candle values" : "Selected price"}>
-            {(chartType === "candles" ? [['O', hoveredCandle?.open], ['H', hoveredCandle?.high], ['L', hoveredCandle?.low], ['C', hoveredCandle?.close]] as const : [['Price', hoveredCandle?.close]] as const).map(([label, value]) => (
-              <span key={label} className="whitespace-nowrap text-[var(--nt-muted)]">{label} <strong className="font-medium text-[var(--nt-text)]">{value == null ? "—" : `$${toDisplayPrice(value)}`}</strong></span>
-            ))}
-          </div>
-          <div className="flex items-center gap-0.5 rounded-lg bg-[var(--nt-surface2)] p-1" role="group" aria-label="Chart style">
-            {([['candles', 'Candles'], ['line', 'Line']] as const).map(([value, label]) => (
-              <button key={value} type="button" aria-pressed={chartType === value} onClick={() => setChartType(value)} className={`min-h-9 rounded-md px-2.5 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nt-accent)] sm:text-xs ${chartType === value ? "bg-[var(--nt-bg)] text-[var(--nt-text)] shadow-sm" : "text-[var(--nt-muted)] hover:text-[var(--nt-text)]"}`}>
-                {label}
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-0.5 rounded-lg bg-[var(--nt-surface2)] p-1" role="group" aria-label="Chart history range">
-            {HISTORY_RANGES[duration].map((range) => (
-              <button
-                key={range}
-                type="button"
-                aria-pressed={selectedHistoryRange === range}
-                title={range === "ALL" ? "Show all stored history since 2019" : `Show ${range} of history`}
-                onClick={() => setHistoryRange(range)}
-                className={`min-h-9 rounded-md px-2 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nt-accent)] sm:px-2.5 sm:text-xs ${selectedHistoryRange === range ? "bg-[var(--nt-bg)] text-[var(--nt-text)] shadow-sm" : "text-[var(--nt-muted)] hover:text-[var(--nt-text)]"}`}
-              >
-                {range}
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
+      <div className="chart-range">
+        <span>Range</span>
+        <div className="range-buttons">
+          {(Object.keys(rangeDays) as Range[]).map((v) => (
             <button
-              onClick={() => {
-                setFollowMode(!followMode);
-                setTooltip(followMode ? "Follow Mode: OFF" : "Follow Mode: ON");
-                if (!followMode && chartRef.current) {
-                  chartRef.current.timeScale().scrollToRealTime();
-                }
-              }}
-              className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                followMode
-                  ? "bg-[color:color-mix(in_srgb,var(--nt-surface2)_10%,transparent)] text-[var(--nt-text)] border border-[color:color-mix(in_srgb,var(--nt-border)_30%,transparent)]"
-                  : "bg-[var(--nt-surface2)] text-[var(--nt-muted)] border border-[var(--nt-border)]"
-              }`}
+              key={v}
+              aria-pressed={range === v}
+              onClick={() => onRange(v)}
             >
-              <div className="flex items-center gap-1.5">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  {followMode ? (
-                    <>
-                      <polyline points="23 4 23 10 17 10"></polyline>
-                      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                    </>
-                  ) : (
-                    <>
-                      <circle cx="12" cy="12" r="10"></circle>
-                      <line x1="12" y1="8" x2="12" y2="12"></line>
-                      <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                    </>
-                  )}
-                </svg>
-                <span>{followMode ? "Live" : "Paused"}</span>
-              </div>
+              {v === "ALL" ? "All" : v}
             </button>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center border border-[var(--nt-border)] rounded-lg bg-[var(--nt-surface2)]">
-              <button
-                aria-label="Zoom in"
-                title="Zoom in"
-                className="min-h-10 min-w-10 flex items-center justify-center rounded-l-lg hover:bg-[var(--nt-surface)] transition-colors text-[var(--nt-muted)] hover:text-[var(--nt-text)]"
-                onClick={() => {
-                  if (chartRef.current) {
-                    const logicalRange = chartRef.current.timeScale().getVisibleLogicalRange();
-                    if (logicalRange !== null) {
-                      chartRef.current.timeScale().setVisibleLogicalRange({
-                        from: logicalRange.from + (logicalRange.to - logicalRange.from) * 0.2,
-                        to: logicalRange.to - (logicalRange.to - logicalRange.from) * 0.2,
-                      });
-                      setTooltip("Zoomed in");
-                    }
-                  }
-                }}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="11" cy="11" r="8"></circle>
-                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                  <line x1="11" y1="8" x2="11" y2="14"></line>
-                  <line x1="8" y1="11" x2="14" y2="11"></line>
-                </svg>
-              </button>
-              <div className="w-[1px] h-8 bg-[var(--nt-border)]"></div>
-              <button
-                aria-label="Zoom out"
-                title="Zoom out"
-                className="min-h-10 min-w-10 flex items-center justify-center hover:bg-[var(--nt-surface)] transition-colors text-[var(--nt-muted)] hover:text-[var(--nt-text)]"
-                onClick={() => {
-                  if (chartRef.current) {
-                    const logicalRange = chartRef.current.timeScale().getVisibleLogicalRange();
-                    if (logicalRange !== null) {
-                      const rangeSize = logicalRange.to - logicalRange.from;
-                      chartRef.current.timeScale().setVisibleLogicalRange({
-                        from: logicalRange.from - rangeSize * 0.2,
-                        to: logicalRange.to + rangeSize * 0.2,
-                      });
-                      setTooltip("Zoomed out");
-                    }
-                  }
-                }}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="11" cy="11" r="8"></circle>
-                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                  <line x1="8" y1="11" x2="14" y2="11"></line>
-                </svg>
-              </button>
-              <div className="w-[1px] h-8 bg-[var(--nt-border)]"></div>
-              <button
-                aria-label="Fit chart to data"
-                title="Fit chart to data"
-                className="min-h-10 min-w-10 flex items-center justify-center rounded-r-lg hover:bg-[var(--nt-surface)] transition-colors text-[var(--nt-muted)] hover:text-[var(--nt-text)]"
-                onClick={() => {
-                  if (chartRef.current) {
-                    fitChartToDataRef.current();
-                    setTooltip("Reset zoom");
-                  }
-                }}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                  <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                </svg>
-              </button>
-            </div>
-          </div>
+          ))}
         </div>
-        <div className="flex-grow relative">
-          {loading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-[color:color-mix(in_srgb,var(--nt-surface)_50%,transparent)] backdrop-blur-sm z-10">
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-12 h-12 border-4 border-[var(--nt-border)] border-t-[var(--nt-accent)] rounded-full animate-spin"></div>
-                <p className="text-sm text-[var(--nt-muted)]">Loading chart data...</p>
-              </div>
-            </div>
-          )}
-          {error && !loading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-[color:color-mix(in_srgb,var(--nt-surface)_50%,transparent)] backdrop-blur-sm z-10">
-              <div className="flex flex-col items-center gap-3 p-6 bg-[var(--nt-surface2)] border border-red-500/30 rounded-xl">
-                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="12" y1="8" x2="12" y2="12"></line>
-                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                </svg>
-                <p className="text-red-400 font-medium">{error}</p>
-                <button
-                  onClick={() => window.location.reload()}
-                  className="mt-2 px-4 py-2 bg-[var(--nt-border)] hover:bg-[color:color-mix(in_srgb,var(--nt-accent)_20%,transparent)] text-[var(--nt-text)] rounded-lg transition-colors"
-                >
-                  Reload Page
-                </button>
-              </div>
-            </div>
-          )}
-          {hasNoData && !loading && !error && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-[color:color-mix(in_srgb,var(--nt-surface)_70%,transparent)] p-4">
-              <div className="max-w-sm rounded-lg border border-[var(--nt-border)] bg-[var(--nt-surface2)] p-5 text-center">
-                <p className="text-sm font-medium text-[var(--nt-text)]">No saved prices for this range</p>
-                <p className="mt-1 text-xs text-[var(--nt-muted)]">Try another range, or retry after market history finishes syncing.</p>
-                <button type="button" onClick={() => setReloadKey((key) => key + 1)} className="mt-3 min-h-10 rounded-md border border-[var(--nt-border)] px-4 text-sm text-[var(--nt-text)] hover:bg-[var(--nt-surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nt-accent)]">Retry</button>
-              </div>
-            </div>
-          )}
-          <div ref={chartContainerRef} className="h-full w-full" />
-        </div>
+        <button
+          className="quiet"
+          onClick={() => {
+            chart.current?.timeScale().fitContent();
+            following.current = true;
+            setFollow(true);
+          }}
+        >
+          Fit range
+        </button>
+        {!follow && (
+          <button
+            className="quiet"
+            onClick={() => {
+              chart.current?.timeScale().scrollToRealTime();
+              following.current = true;
+              setFollow(true);
+            }}
+          >
+            Return to latest
+          </button>
+        )}
       </div>
-    </div>
+      <div className="coverage">
+        {coverage?.actualStart != null && coverage.actualEnd != null ? (
+          <>
+            {stamp(coverage.actualStart)} – {stamp(coverage.actualEnd)} ·{" "}
+            {coverage.count.toLocaleString()} bars · {interval} candles · UTC
+            {!coverage.complete && <strong> Partial history</strong>}
+          </>
+        ) : (
+          "Historical coverage unavailable"
+        )}
+        <span>{coverage?.source}</span>
+      </div>
+    </section>
   );
 }

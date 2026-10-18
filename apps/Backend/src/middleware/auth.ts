@@ -1,6 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
 import { verifyToken } from "../utils/jwt";
-import { findUSerId } from "../data/store";
 
 declare global {
   namespace Express {
@@ -23,19 +22,12 @@ export function authMiddleware(
     return;
   }
   const newToken = verifyToken(token);
-  if (!newToken) {
+  if (!newToken || newToken.purpose === "websocket") {
     console.log("[AUTH]  Invalid or Token Expired");
     res.status(403).json({ error: "Invalid or Expire token " });
     return;
   }
   const userId = newToken.userId;
-  const UserExisted = findUSerId(userId);
-  if (!UserExisted) {
-    console.log(`${userId} This User Is NOt Exsisted`);
-    res.status(401).json({ error: "User Not Found" });
-    return;
-  }
-  console.log("USer Authenticated !!!!!!!!!!");
   req.userId = newToken.userId;
   next();
 }
