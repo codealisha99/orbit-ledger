@@ -23,7 +23,10 @@ const server = createServer((req, res) => {
     JSON.stringify({
       status: "ok",
       ready,
-      revision: process.env.RAILWAY_GIT_COMMIT_SHA ?? "local",
+      revision:
+        process.env.RAILWAY_GIT_COMMIT_SHA ??
+        process.env.APP_REVISION ??
+        "local",
     }),
   );
 });

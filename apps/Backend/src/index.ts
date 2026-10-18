@@ -49,7 +49,9 @@ app.set("trust proxy", 1);
 app.get("/health", (_req, res) => {
   res.status(200).json({
     status: "ok",
-    revision: process.env.RAILWAY_GIT_COMMIT_SHA ?? "local",
+    apiContract: 2,
+    revision:
+      process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.APP_REVISION ?? "local",
   });
 });
 

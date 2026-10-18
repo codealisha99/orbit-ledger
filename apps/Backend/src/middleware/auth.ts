@@ -17,14 +17,22 @@ export function authMiddleware(
   const header = req.headers.authorization;
   const token = header?.split(" ")[1];
   if (!token) {
-    console.log("[AUTH] no token Is thier in Header");
-    res.status(401).json({ error: "Acess Token Requires" });
+    res
+      .status(401)
+      .json({
+        error: "Sign in to access your account.",
+        code: "AUTH_REQUIRED",
+      });
     return;
   }
   const newToken = verifyToken(token);
   if (!newToken || newToken.purpose === "websocket") {
-    console.log("[AUTH]  Invalid or Token Expired");
-    res.status(403).json({ error: "Invalid or Expire token " });
+    res
+      .status(403)
+      .json({
+        error: "Your session has expired. Sign in again.",
+        code: "SESSION_EXPIRED",
+      });
     return;
   }
   const userId = newToken.userId;
