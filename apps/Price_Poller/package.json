@@ -4,7 +4,9 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "bun ../../scripts/watch-quiet.ts src/index.ts"
+    "dev": "bun ../../scripts/watch-quiet.ts src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "start": "bun src/index.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"
