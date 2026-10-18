@@ -13,12 +13,26 @@ export const binanceEmitter = new EventEmitter();
 let wss: WebSocket | null = null;
 let reconnectTimeout: NodeJS.Timeout | null = null;
 let isShuttingDown = false;
+let reconnectAttempt = 0;
+
+function scheduleReconnect() {
+  if (isShuttingDown || reconnectTimeout) return;
+  const delay = Math.min(3000 * 2 ** reconnectAttempt, 30000);
+  reconnectAttempt = Math.min(reconnectAttempt + 1, 4);
+  reconnectTimeout = setTimeout(() => {
+    reconnectTimeout = null;
+    console.log("Attempting to reconnect to Binance...");
+    startBinance();
+  }, delay);
+}
 
 export function startBinance() {
   if (isShuttingDown) return;
   try {
-    wss = new WebSocket("wss://stream.binance.com:9443/ws"); //connecting to binance
+    const endpoint = process.env.BINANCE_WS_URL || "wss://stream.binance.com:443/ws";
+    wss = new WebSocket(endpoint);
     wss.on("open", () => {
+      reconnectAttempt = 0;
       console.log(" Binance WebSocket is Connected");
       const stream = {
         method: "SUBSCRIBE",
@@ -46,24 +60,20 @@ export function startBinance() {
     });
     wss.on("close", () => {
       if (isShuttingDown) return;
-      console.log("Websocket conncetion is closed");
-      reconnectTimeout = setTimeout(() => {
-        console.log("Attempting to reconnect...");
-        startBinance();
-      }, 3000);
+      console.log("Binance WebSocket connection closed");
+      scheduleReconnect();
+    });
+    wss.on("unexpected-response", (_request, response) => {
+      console.error(`[BINANCE] WebSocket handshake rejected with HTTP ${response.statusCode}`);
+      response.resume();
     });
     wss.on("error", (err) => {
-      console.error("WebSocket error:", err);
+      console.error("[BINANCE] WebSocket error:", err.message);
       wss?.close();
     });
   } catch (err) {
-    console.error(" Fatal error in startBinance webscoket:", err);
-    if (!isShuttingDown) {
-      reconnectTimeout = setTimeout(() => {
-        console.log("Attempting to reconnect...");
-        startBinance();
-      }, 3000);
-    }
+    console.error("[BINANCE] Fatal error starting WebSocket:", err);
+    scheduleReconnect();
   }
 }
 
