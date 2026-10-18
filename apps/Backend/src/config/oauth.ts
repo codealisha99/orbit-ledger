@@ -14,8 +14,7 @@ export const oauthConfig = {
       process.env.GITHUB_CALLBACK_URL ||
       "http://localhost:5000/api/v2/auth/github/callback",
   },
-  frontendURL: process.env.FRONTEND_URL || "http://localhost:5173",
-  jwtSecret: process.env.JWT_SECRET || "your-secret-key",
+  frontendURL: process.env.FRONTEND_URL || "http://localhost:3000",
 };
 
 export function validateOAuthConfig(): {

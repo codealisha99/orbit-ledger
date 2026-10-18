@@ -16,6 +16,10 @@ import { logOAuthStatus } from "./config/oauth";
 const app: Express = express();
 const port = Number(process.env.PORT) || 5000;
 
+app.get("/health", (_req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 const allowedOrigins = (process.env.CORS_ORIGINS ?? "")
   .split(",")
   .map((origin) => origin.trim())
