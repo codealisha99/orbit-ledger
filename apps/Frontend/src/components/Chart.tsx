@@ -29,16 +29,16 @@ import {
 import type { Trade } from "./AskBidsTable";
 import { toDisplayPrice } from "../utils/utils";
 
-type HistoryRange = "1D" | "3D" | "1W" | "1M" | "3M" | "1Y" | "ALL";
+type HistoryRange = "1D" | "3D" | "1W" | "3W" | "1M" | "3M" | "1Y" | "ALL";
 
 const HISTORY_RANGES: Record<Duration, HistoryRange[]> = {
-  "1m": ["1D", "3D"],
-  "5m": ["1D", "1W", "1M"],
-  "15m": ["1W", "1M", "3M"],
-  "1h": ["1W", "1M", "1Y"],
-  "4h": ["1M", "3M", "1Y"],
-  "1d": ["1M", "3M", "1Y", "ALL"],
-  "1w": ["1M", "3M", "1Y", "ALL"],
+  "1m": ["1D", "3D", "1W", "3W"],
+  "5m": ["1D", "1W", "3W", "1M"],
+  "15m": ["1W", "3W", "1M", "3M"],
+  "1h": ["1W", "3W", "1M", "3M", "1Y"],
+  "4h": ["1W", "3W", "1M", "3M", "1Y"],
+  "1d": ["1W", "3W", "1M", "3M", "1Y", "ALL"],
+  "1w": ["1W", "3W", "1M", "3M", "1Y", "ALL"],
 };
 
 function getHistoryStartTime(range: HistoryRange): number {
@@ -48,6 +48,7 @@ function getHistoryStartTime(range: HistoryRange): number {
     "1D": 24 * 60 * 60 * 1000,
     "3D": 3 * 24 * 60 * 60 * 1000,
     "1W": 7 * 24 * 60 * 60 * 1000,
+    "3W": 21 * 24 * 60 * 60 * 1000,
     "1M": 30 * 24 * 60 * 60 * 1000,
     "3M": 90 * 24 * 60 * 60 * 1000,
     "1Y": 365 * 24 * 60 * 60 * 1000,
@@ -71,13 +72,17 @@ export default function ChartComponent({
   const [tooltipVisible, setTooltipVisible] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasNoData, setHasNoData] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [followMode, setFollowMode] = useState<boolean>(true);
   const [historyRange, setHistoryRange] = useState<HistoryRange>("1D");
   const [chartType, setChartType] = useState<"candles" | "line">("candles");
   const selectedHistoryRange = HISTORY_RANGES[duration].includes(historyRange)
     ? historyRange
-    : duration === Duration.candles_1d || duration === Duration.candles_1w
-      ? "ALL"
+    : duration === Duration.candles_1w
+      ? "3M"
+      : duration === Duration.candles_1d
+        ? "1M"
       : HISTORY_RANGES[duration][0];
   const [theme, setTheme] = useState("dark");
   const tooltipTimeoutRef = useRef<number | null>(null);
@@ -135,6 +140,7 @@ export default function ChartComponent({
       try {
         setLoading(true);
         setError(null);
+        setHasNoData(false);
 
         const styles = getComputedStyle(document.documentElement);
         const surface = styles.getPropertyValue("--nt-surface2").trim();
@@ -266,6 +272,7 @@ export default function ChartComponent({
 
         const rawData = await getChartData(symbol, duration, getHistoryStartTime(selectedHistoryRange)) as CandlestickData<Time>[];
         if (isCleanedUp) return;
+        setHasNoData(rawData.length === 0);
 
         if (candlestickSeries) {
           candlestickSeries.setData([]);
@@ -383,7 +390,7 @@ export default function ChartComponent({
       candlestickSeries = null;
       lineSeries = null;
     };
-  }, [duration, selectedHistoryRange, symbol, onPriceUpdate, theme, chartType]);
+  }, [duration, selectedHistoryRange, symbol, onPriceUpdate, theme, chartType, reloadKey]);
 
   return (
     <div className="text-[var(--nt-text)] h-full w-full relative">
@@ -413,7 +420,7 @@ export default function ChartComponent({
           </div>
           <div className="flex items-center gap-0.5 rounded-lg bg-[var(--nt-surface2)] p-1" role="group" aria-label="Chart style">
             {([['candles', 'Candles'], ['line', 'Line']] as const).map(([value, label]) => (
-              <button key={value} type="button" aria-pressed={chartType === value} onClick={() => setChartType(value)} className={`min-h-9 rounded-md px-2.5 text-[10px] font-medium transition-colors sm:text-xs ${chartType === value ? "bg-[var(--nt-bg)] text-[var(--nt-text)] shadow-sm" : "text-[var(--nt-muted)] hover:text-[var(--nt-text)]"}`}>
+              <button key={value} type="button" aria-pressed={chartType === value} onClick={() => setChartType(value)} className={`min-h-9 rounded-md px-2.5 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nt-accent)] sm:text-xs ${chartType === value ? "bg-[var(--nt-bg)] text-[var(--nt-text)] shadow-sm" : "text-[var(--nt-muted)] hover:text-[var(--nt-text)]"}`}>
                 {label}
               </button>
             ))}
@@ -426,7 +433,7 @@ export default function ChartComponent({
                 aria-pressed={selectedHistoryRange === range}
                 title={range === "ALL" ? "Show all stored history since 2019" : `Show ${range} of history`}
                 onClick={() => setHistoryRange(range)}
-                className={`min-h-9 rounded-md px-2 text-[10px] font-medium transition-colors sm:px-2.5 sm:text-xs ${selectedHistoryRange === range ? "bg-[var(--nt-bg)] text-[var(--nt-text)] shadow-sm" : "text-[var(--nt-muted)] hover:text-[var(--nt-text)]"}`}
+                className={`min-h-9 rounded-md px-2 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nt-accent)] sm:px-2.5 sm:text-xs ${selectedHistoryRange === range ? "bg-[var(--nt-bg)] text-[var(--nt-text)] shadow-sm" : "text-[var(--nt-muted)] hover:text-[var(--nt-text)]"}`}
               >
                 {range}
               </button>
@@ -561,6 +568,15 @@ export default function ChartComponent({
                 >
                   Reload Page
                 </button>
+              </div>
+            </div>
+          )}
+          {hasNoData && !loading && !error && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-[color:color-mix(in_srgb,var(--nt-surface)_70%,transparent)] p-4">
+              <div className="max-w-sm rounded-lg border border-[var(--nt-border)] bg-[var(--nt-surface2)] p-5 text-center">
+                <p className="text-sm font-medium text-[var(--nt-text)]">No saved prices for this range</p>
+                <p className="mt-1 text-xs text-[var(--nt-muted)]">Try another range, or retry after market history finishes syncing.</p>
+                <button type="button" onClick={() => setReloadKey((key) => key + 1)} className="mt-3 min-h-10 rounded-md border border-[var(--nt-border)] px-4 text-sm text-[var(--nt-text)] hover:bg-[var(--nt-surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nt-accent)]">Retry</button>
               </div>
             </div>
           )}

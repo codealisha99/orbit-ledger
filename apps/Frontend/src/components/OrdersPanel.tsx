@@ -27,11 +27,21 @@ interface ClosedOrder extends OpenOrder {
 }
 
 type OpenOrderWithPnl = OpenOrder & { pnlUsd: number };
+export interface OrderActivity {
+  id: string;
+  event: "opened" | "closed" | "liquidated";
+  asset: string;
+  side: "buy" | "sell";
+  price: number;
+  pnl?: number;
+  timestamp: number;
+}
 
-export default function OrdersPanel({ onRefreshReady }: { onRefreshReady?: (refresh: () => void) => void }) {
-  const [activeTab, setActiveTab] = useState<"open" | "closed">("open");
+export default function OrdersPanel({ onRefreshReady, activity = [] }: { onRefreshReady?: (refresh: () => void) => void; activity?: OrderActivity[] }) {
+  const [activeTab, setActiveTab] = useState<"open" | "closed" | "activity">("open");
   const [openOrders, setOpenOrders] = useState<OpenOrder[]>([]);
   const [closedOrders, setClosedOrders] = useState<ClosedOrder[]>([]);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isClosingPosition, setIsClosingPosition] = useState<string | null>(
     null
@@ -64,8 +74,9 @@ export default function OrdersPanel({ onRefreshReady }: { onRefreshReady?: (refr
     }
   }, []);
 
-  const fetchClosedOrders = async (background = false) => {
+  const fetchClosedOrders = useCallback(async (background = false) => {
     if (!background) setIsLoading(true);
+    setHistoryError(null);
     try {
       const token = localStorage.getItem("token") || "";
 
@@ -73,28 +84,31 @@ export default function OrdersPanel({ onRefreshReady }: { onRefreshReady?: (refr
       setClosedOrders(response.data.orders || []);
     } catch (error) {
       console.error("Error fetching closed orders:", error);
+      setHistoryError("Could not load your order history.");
     } finally {
       if (!background) setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (activeTab === "open") {
       fetchOpenOrders();
-    } else {
+    } else if (activeTab === "closed") {
       fetchClosedOrders();
     }
+
+    if (activeTab === "activity") return;
 
     const intervalId = setInterval(() => {
       if (activeTab === "open") {
         fetchOpenOrders(true);
-      } else {
+      } else if (activeTab === "closed") {
         fetchClosedOrders(true);
       }
     }, 5000);
 
     return () => clearInterval(intervalId);
-  }, [activeTab, fetchOpenOrders]);
+  }, [activeTab, fetchOpenOrders, fetchClosedOrders]);
 
   useEffect(() => {
     if (onRefreshReady) {
@@ -237,7 +251,9 @@ export default function OrdersPanel({ onRefreshReady }: { onRefreshReady?: (refr
     <div className="bg-[color:color-mix(in_srgb,var(--nt-surface)_80%,transparent)] backdrop-blur-xl border border-[var(--nt-border)] rounded-lg w-full h-full flex flex-col">
       <div className="flex border-b border-[color:color-mix(in_srgb,var(--nt-border)_40%,transparent)]">
         <button
-          className={`flex-1 py-3 text-center text-sm font-medium transition ${
+          type="button"
+          aria-pressed={activeTab === "open"}
+          className={`min-h-11 flex-1 py-2 text-center text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--nt-accent)] sm:text-sm ${
             activeTab === "open"
               ? "text-[var(--nt-accent)] border-b-2 border-[var(--nt-accent)]"
               : "text-[var(--nt-text)] hover:text-[var(--nt-text)]"
@@ -247,7 +263,9 @@ export default function OrdersPanel({ onRefreshReady }: { onRefreshReady?: (refr
           Open Positions
         </button>
         <button
-          className={`flex-1 py-3 text-center text-sm font-medium transition ${
+          type="button"
+          aria-pressed={activeTab === "closed"}
+          className={`min-h-11 flex-1 py-2 text-center text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--nt-accent)] sm:text-sm ${
             activeTab === "closed"
               ? "text-[var(--nt-accent)] border-b-2 border-[var(--nt-accent)]"
               : "text-[var(--nt-text)] hover:text-[var(--nt-text)]"
@@ -255,6 +273,18 @@ export default function OrdersPanel({ onRefreshReady }: { onRefreshReady?: (refr
           onClick={() => setActiveTab("closed")}
         >
           Order History
+        </button>
+        <button
+          type="button"
+          aria-pressed={activeTab === "activity"}
+          className={`min-h-11 flex-1 py-2 text-center text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--nt-accent)] sm:text-sm ${
+            activeTab === "activity"
+              ? "text-[var(--nt-accent)] border-b-2 border-[var(--nt-accent)]"
+              : "text-[var(--nt-text)] hover:text-[var(--nt-text)]"
+          }`}
+          onClick={() => setActiveTab("activity")}
+        >
+          Live activity{activity.length > 0 ? ` · ${activity.length}` : ""}
         </button>
       </div>
 
@@ -528,6 +558,36 @@ export default function OrdersPanel({ onRefreshReady }: { onRefreshReady?: (refr
               </div>
             )}
           </>
+        ) : activeTab === "activity" ? (
+          activity.length > 0 ? (
+            <ol className="divide-y divide-[var(--nt-border)]" aria-live="polite" aria-label="Live order activity">
+              {activity.map((item) => (
+                <li key={item.id} className="flex items-center justify-between gap-3 py-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${item.event === "opened" ? "bg-[var(--nt-accent)]" : item.event === "liquidated" ? "bg-red-500" : "bg-emerald-500"}`} />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-[var(--nt-text)]">{item.asset.replace("USDT", "")}/USDT <span className={item.side === "buy" ? "text-[var(--nt-accent)]" : "text-red-400"}>{item.side.toUpperCase()}</span> · {item.event}</p>
+                      <p className="text-xs text-[var(--nt-muted)]">{new Date(item.timestamp).toLocaleTimeString()}</p>
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-right font-mono text-sm text-[var(--nt-text)]">
+                    ${item.price.toFixed(2)}
+                    {item.pnl != null && <p className={`text-xs ${item.pnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>{item.pnl >= 0 ? "+" : "−"}${Math.abs(item.pnl).toFixed(2)}</p>}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <div className="flex h-full min-h-40 flex-col items-center justify-center px-4 text-center">
+              <span className="text-sm font-medium text-[var(--nt-text)]">No live orders yet</span>
+              <span className="mt-1 text-xs text-[var(--nt-muted)]">New orders and closes will appear here in real time.</span>
+            </div>
+          )
+        ) : historyError ? (
+          <div className="flex h-full min-h-40 flex-col items-center justify-center gap-3 px-4 text-center">
+            <span className="text-sm text-red-400">{historyError}</span>
+            <button type="button" onClick={() => fetchClosedOrders()} className="min-h-10 rounded-md border border-[var(--nt-border)] px-4 text-sm text-[var(--nt-text)] hover:bg-[var(--nt-surface2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nt-accent)]">Try again</button>
+          </div>
         ) : closedOrders.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

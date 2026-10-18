@@ -87,8 +87,9 @@ export async function getCandelFromDb(
 
   const rangeDuration = (endTime - startTime) / 60; // startTime/endTime are in seconds
   const expectedCandles = rangeDuration / IntervalConfig[interval].minutes;
-  if (expectedCandles > 10000) {
-    startTime = endTime - 10000 * IntervalConfig[interval].minutes * 60;
+  const maxIntradayCandles = 50000;
+  if (expectedCandles > maxIntradayCandles) {
+    startTime = endTime - maxIntradayCandles * IntervalConfig[interval].minutes * 60;
   }
   const startDate = new Date(startTime * 1000);
   const endDate = new Date(endTime * 1000);
@@ -110,7 +111,7 @@ export async function getCandelFromDb(
         AND timestamp <= $3
       GROUP BY time_bucket(INTERVAL '${pgInterval}', timestamp)
       ORDER BY time ASC
-      LIMIT 10000
+      LIMIT 50000
     `, dbSymbol, startDate, endDate);
   } catch (error) {
     // Fallback for plain PostgreSQL (e.g., Neon) where time_bucket extension is unavailable.
@@ -128,7 +129,7 @@ export async function getCandelFromDb(
         AND timestamp <= $3
       GROUP BY date_bin(INTERVAL '${pgInterval}', timestamp, TIMESTAMP '2001-01-01')
       ORDER BY time ASC
-      LIMIT 10000
+      LIMIT 50000
     `, dbSymbol, startDate, endDate);
 
     console.warn("[CANDLES] Using date_bin fallback query:", error instanceof Error ? error.message : error);

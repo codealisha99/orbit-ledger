@@ -457,9 +457,6 @@ export default function BuySell({
               <label className="text-xs text-[color:color-mix(in_srgb,var(--nt-text)_60%,transparent)]">Leverage</label>
             </div>
             <div className="flex items-center">
-              <div className="text-xs text-[color:color-mix(in_srgb,var(--nt-text)_50%,transparent)] bg-[var(--nt-surface2)] px-1.5 py-0.5 rounded mr-1">
-                <span className="text-[color:color-mix(in_srgb,var(--nt-text)_70%,transparent)] font-medium">{leverage}x</span>
-              </div>
               <div className="rounded bg-green-500/10 px-2 py-1 text-right">
                 <div className="text-[9px] leading-tight text-[var(--nt-muted)]">Position size</div>
                 <div className="text-[11px] font-medium text-green-400">
