@@ -12,9 +12,14 @@ import { startSnapshotService, stopSnapshotService } from "./services/snapshotSe
 import { restoreState } from "./services/stateRestoration";
 import { initPlatformProfit } from "./services/platformProfit";
 import { logOAuthStatus } from "./config/oauth";
+import { closeRateLimitStore, connectRateLimitStore, globalRateLimit } from "./middleware/rateLimit";
 
 const app: Express = express();
 const port = Number(process.env.PORT) || 5000;
+
+// Railway terminates TLS at one trusted proxy hop; use the forwarded client IP
+// for rate limiting instead of grouping every request under the proxy address.
+app.set("trust proxy", 1);
 
 app.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok" });
@@ -56,9 +61,8 @@ app.use(
 );
 app.options(/.*/, cors());
 
-app.use(express.json());
-import { globalRateLimit } from "./middleware/rateLimit";
 app.use(globalRateLimit);
+app.use(express.json({ limit: "64kb" }));
 
 app.use("/api/v2/user", userRouter);
 app.use("/api/v2/trade", tradeRoutes);
@@ -78,6 +82,7 @@ app.use((error: Error, _req: Request, res: Response, _next: NextFunction) => {
 
 async function main() {
   try {
+    await connectRateLimitStore();
     logOAuthStatus();
 
     await restoreState();
@@ -110,6 +115,7 @@ async function shutdown() {
     stopPositionMonitor();
     await stopPriceMonitor();
     await stopOrderBroadcast();
+    await closeRateLimitStore();
     console.log("[SERVER] All services stopped successfully");
   } catch (error) {
     console.error("[SERVER] Error during shutdown:", error);
