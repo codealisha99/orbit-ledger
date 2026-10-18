@@ -2,6 +2,8 @@
 
 Local verification date: 18 October 2026. Implementation follows [the product-quality plan](product-quality-plan.md). Deployment, production data recovery, provider credentials, and representative staging load remain external release gates; see [the runbook](release-runbook.md).
 
+Follow-up: the production service-version mismatch and its correction are documented in [the deployment incident](deployment-incident-20261018.md). The subsequent landing-page rebuild includes an interactive illustrative trading scenario, chart-draw and orbital motion, responsive layouts, FAQ, and motion controls. Current automated coverage is 29 tests / 95 assertions.
+
 ## Delivered
 
 - Shared black/blue application shell with light theme, compact market summary, a larger chart, separate candle interval/range controls, saved URL preferences and Back/Forward behavior, a focused paper trade ticket, and responsive chart → ticket → account flow.
