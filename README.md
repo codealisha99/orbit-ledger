@@ -65,20 +65,26 @@ The integration runner refuses nonlocal databases or other database names. CI ap
 
 The API base is `/api/v2`. Browser clients use `/api/bridge/*` on the frontend, which forwards the server-held session. Direct service clients may use an API bearer token. All financial mutation requests require a stable `Idempotency-Key`; retries must preserve both key and input.
 
-| Endpoint                                                                                             | Purpose                                                                        |
-| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `POST /user/signup`, `/user/signin`                                                                  | Password account/session creation                                              |
-| `GET /auth/status`, `/auth/google`, `/auth/github`                                                   | Provider availability and login                                                |
-| `POST /auth/exchange`                                                                                | Exchange a verified, expiring one-use OAuth code                               |
-| `GET /user/balance`, `/user/ws-ticket`                                                               | Durable cash and short-lived private stream ticket                             |
-| `GET /trade/summary`                                                                                 | Versioned account snapshot and position valuations                             |
-| `POST /trade/open`, `/trade/close`, `/trade/partial-close`, `/trade/add-margin`, `/trade/protection` | Idempotent position mutations                                                  |
-| `GET /trade/history`                                                                                 | Symbol/side/date/receipt filters, close-time sorting, cursor pagination        |
-| `GET /trade/receipt/:positionId`, `/trade/events?after=version`                                      | Private lifecycle receipts and replay                                          |
-| `GET /trade/equity`, `/trade/performance`                                                            | Genuine valuation history and grouped completed-position metrics               |
-| `GET /asset`, `/asset/candles`, `/asset/trades`, `/asset/stats`                                      | Fresh quotes, coverage-aware candles, public executions, actual 24h statistics |
+| Endpoint                                                                                                                 | Purpose                                                                        |
+| ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| `POST /user/signup`, `/user/signin`                                                                                      | Password account/session creation                                              |
+| `GET /auth/status`, `/auth/google`, `/auth/github`                                                                       | Provider availability and login                                                |
+| `POST /auth/exchange`                                                                                                    | Exchange a verified, expiring one-use OAuth code                               |
+| `GET /user/balance`, `/user/ws-ticket`                                                                                   | Durable cash and short-lived private stream ticket                             |
+| `GET /user/profile`, `/user/workspace`                                                                                   | Private account details, saved markets, and alerts                             |
+| `POST /user/workspace/watchlist`, `/user/workspace/alerts`, `/user/workspace/alerts/:id`, `/user/workspace/check-alerts` | Save/remove watched markets; create, remove, rearm, and check in-app alerts    |
+| `GET /trade/summary`                                                                                                     | Versioned account snapshot and position valuations                             |
+| `POST /trade/open`, `/trade/close`, `/trade/partial-close`, `/trade/add-margin`, `/trade/protection`                     | Idempotent position mutations                                                  |
+| `GET /trade/history`                                                                                                     | Symbol/side/date/receipt filters, close-time sorting, cursor pagination        |
+| `GET /trade/receipt/:positionId`, `/trade/events?after=version`                                                          | Private lifecycle receipts and replay                                          |
+| `GET /trade/equity`, `/trade/performance`                                                                                | Genuine valuation history and grouped completed-position metrics               |
+| `GET /asset`, `/asset/candles`, `/asset/trades`, `/asset/stats`                                                          | Fresh quotes, coverage-aware candles, public executions, actual 24h statistics |
 
 `/health` reports API liveness/revision. `/ready` reports dependency/quote/risk health separately. WebSocket and poller services expose their own health/readiness endpoints. Rate limits and structured failures distinguish invalid requests, authentication, unavailable quotes, and ambiguous submissions.
+
+## Presenting the MVP
+
+See [the five-minute walkthrough](docs/mvp-guide.md) for the complete Home → Dashboard → saved market/alert → paper trade → receipt → account journey, verification, and clear feature boundaries. Signed-in users can always visit Home and return to Dashboard.
 
 ## Deployment
 

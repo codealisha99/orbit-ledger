@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { resolveDestination } from "@/lib/navigation";
 import { api } from "@/lib/client";
 import { clearAccount } from "@/lib/account";
 export default function Callback() {
@@ -25,13 +26,8 @@ export default function Callback() {
         clearAccount();
         const next = sessionStorage.getItem("orbit-auth-next");
         sessionStorage.removeItem("orbit-auth-next");
-        router.replace(
-          next?.startsWith("/") &&
-            !next.startsWith("//") &&
-            !next.startsWith("/\\")
-            ? next
-            : "/trading",
-        );
+        router.replace(resolveDestination(next));
+        router.refresh();
       })
       .catch((e) => setError(e.message));
   }, [router]);

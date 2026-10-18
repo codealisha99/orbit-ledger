@@ -55,9 +55,35 @@ model User {
   providerId    String?  // OAuth provider's user ID
   emailVerified Boolean  @default(false)
   avatarUrl     String?  // Profile picture from OAuth
+  watchlist     WatchMarket[]
+  priceAlerts   PriceAlert[]
 
   @@index([provider, providerId])
   @@map("users")
+}
+
+model WatchMarket {
+  userId String
+  asset String
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [userId], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([userId, asset])
+  @@map("user_watchlist")
+}
+
+model PriceAlert {
+  id String @id
+  userId String
+  asset String
+  targetPrice Float
+  direction String
+  triggeredAt DateTime?
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [userId], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId, createdAt])
+  @@map("price_alerts")
 }
 
 // Closed trading positions with PnL

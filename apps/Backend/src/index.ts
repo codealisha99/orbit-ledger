@@ -8,6 +8,7 @@ import express from "express";
 import type { Express, NextFunction, Request, Response } from "express";
 import cors from "cors";
 import { userRouter } from "./routes/user";
+import { workspaceRouter } from "./routes/workspace";
 import { tradeRoutes } from "./routes/trades";
 import { assetRouter } from "./routes/asset";
 import { oauthRouter } from "./routes/oauth";
@@ -50,6 +51,7 @@ app.get("/health", (_req, res) => {
   res.status(200).json({
     status: "ok",
     apiContract: 2,
+    capabilities: { workspace: true },
     revision:
       process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.APP_REVISION ?? "local",
   });
@@ -119,6 +121,7 @@ app.use(globalRateLimit);
 app.use(express.json({ limit: "64kb" }));
 
 app.use("/api/v2/user", userRouter);
+app.use("/api/v2/user", workspaceRouter);
 app.use("/api/v2/trade", tradeRoutes);
 app.use("/api/v2/asset", assetRouter);
 app.use("/api/v2/auth", oauthRouter);

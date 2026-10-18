@@ -11,7 +11,7 @@ const checks = [
     "API contract",
     new URL("/health", api),
     200,
-    (v: any) => v.apiContract === 2,
+    (v: any) => v.apiContract === 2 && v.capabilities?.workspace === true,
   ],
   ["API readiness", new URL("/ready", api), 200, (v: any) => v.ready === true],
   [
@@ -26,6 +26,12 @@ const checks = [
     401,
     (v: any) =>
       typeof v.error === "string" && !v.error.includes("Route Not Found"),
+  ],
+  [
+    "Private workspace routing",
+    new URL("/api/bridge/user/workspace", site),
+    401,
+    (v: any) => typeof v.error === "string",
   ],
   [
     "Frontend market routing",

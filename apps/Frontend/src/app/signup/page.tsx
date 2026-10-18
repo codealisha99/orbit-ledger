@@ -1,4 +1,13 @@
 import AuthForm from "@/components/AuthForm";
-export default function Signup() {
+import { hasSession } from "@/lib/server/session";
+import { resolveDestination } from "@/lib/navigation";
+import { redirect } from "next/navigation";
+export default async function Signup({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  if (await hasSession())
+    redirect(resolveDestination((await searchParams).next));
   return <AuthForm signup />;
 }

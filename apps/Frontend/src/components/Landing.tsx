@@ -37,7 +37,7 @@ const questions = [
   ],
 ];
 
-export default function Landing() {
+export default function Landing({ signedIn = false }: { signedIn?: boolean }) {
   const [side, setSide] = useState<"long" | "short">("long");
   const [leverage, setLeverage] = useState(5);
   const [motion, setMotion] = useState(true);
@@ -63,11 +63,18 @@ export default function Landing() {
           <a href="#questions">Questions</a>
         </nav>
         <div className="launch-nav-actions">
-          <Link href="/signin" className="launch-login">
-            Sign in
+          <Link
+            href={signedIn ? "/dashboard" : "/signin"}
+            className="launch-login"
+          >
+            {signedIn ? "Dashboard" : "Sign in"}
           </Link>
-          <Link href="/signup" className="launch-button small">
-            Get started <ArrowUpRight size={15} />
+          <Link
+            href={signedIn ? "/dashboard" : "/signup"}
+            className="launch-button small"
+          >
+            {signedIn ? "Your workspace" : "Get started"}{" "}
+            <ArrowUpRight size={15} />
           </Link>
         </div>
       </header>
@@ -94,8 +101,12 @@ export default function Landing() {
               your exposure, and see what every decision really costs.
             </p>
             <div className="launch-hero-actions">
-              <Link href="/signup" className="launch-button">
-                Create your paper account <ArrowUpRight size={19} />
+              <Link
+                href={signedIn ? "/dashboard" : "/signup"}
+                className="launch-button"
+              >
+                {signedIn ? "Open your Dashboard" : "Create your paper account"}{" "}
+                <ArrowUpRight size={19} />
               </Link>
               <a href="#workspace" className="launch-text-link">
                 Explore the workspace <ArrowRight size={17} />
@@ -290,7 +301,7 @@ export default function Landing() {
                 Read the bigger picture. Explore price history, change your
                 timeframe, and follow actual exchange trades as they arrive.
               </p>
-              <a href="/signup">
+              <a href={signedIn ? "/dashboard" : "/signup"}>
                 Explore the chart <ArrowUpRight size={16} />
               </a>
             </article>
@@ -305,7 +316,7 @@ export default function Landing() {
                 before you commit. Practice sizing a position that makes sense
                 to you.
               </p>
-              <a href="/signup">
+              <a href={signedIn ? "/dashboard" : "/signup"}>
                 Build a paper position <ArrowUpRight size={16} />
               </a>
             </article>
@@ -320,7 +331,7 @@ export default function Landing() {
                 gross and net results. Learn from the trade after the chart has
                 moved on.
               </p>
-              <a href="/signup">
+              <a href={signedIn ? "/dashboard" : "/signup"}>
                 Start your record <ArrowUpRight size={16} />
               </a>
             </article>
@@ -376,7 +387,10 @@ export default function Landing() {
                 <Check size={17} />A durable record of your simulated executions
               </li>
             </ul>
-            <Link href="/signup" className="launch-text-link">
+            <Link
+              href={signedIn ? "/dashboard" : "/signup"}
+              className="launch-text-link"
+            >
               Give yourself room to learn <ArrowRight size={18} />
             </Link>
           </div>
@@ -413,8 +427,12 @@ export default function Landing() {
             <br />
             Make your move count.
           </h2>
-          <Link href="/signup" className="launch-button">
-            Start paper trading <ArrowUpRight size={20} />
+          <Link
+            href={signedIn ? "/dashboard" : "/signup"}
+            className="launch-button"
+          >
+            {signedIn ? "Return to Dashboard" : "Start paper trading"}{" "}
+            <ArrowUpRight size={20} />
           </Link>
           <span>Free to practice. Virtual funds only.</span>
         </section>
@@ -431,8 +449,8 @@ export default function Landing() {
         </div>
         <div className="launch-footer-links">
           <a href="#workspace">Workspace</a>
-          <Link href="/signin">Sign in</Link>
-          <Link href="/signup">Create account</Link>
+          <Link href={signedIn ? "/dashboard" : "/signin"}>Sign in</Link>
+          <Link href={signedIn ? "/dashboard" : "/signup"}>Create account</Link>
           <button onClick={() => setMotion((v) => !v)} aria-pressed={!motion}>
             {motion ? <Pause size={13} /> : <Play size={13} />}
             {motion ? "Pause motion" : "Resume motion"}

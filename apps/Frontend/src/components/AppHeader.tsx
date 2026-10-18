@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import ThemeToggle from "./ThemeToggle";
 import {
   useAccount,
@@ -15,22 +15,39 @@ export default function AppHeader() {
   const router = useRouter();
   const account = useAccount();
   const mutation = useAccountMutation("header");
+  const [signingOut, setSigningOut] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
   useEffect(() => {
     if (account.unauthorized)
       router.replace(`/signin?next=${encodeURIComponent(path)}`);
   }, [account.unauthorized, path, router]);
   async function logout() {
-    await api("session/logout", { method: "POST", body: "{}" });
-    clearAccount();
-    sessionStorage.removeItem("orbit-pending");
-    localStorage.removeItem("token");
-    localStorage.removeItem("userID");
-    router.replace("/signin");
+    setSigningOut(true);
+    setLogoutError(null);
+    try {
+      await api("session/logout", { method: "POST", body: "{}" });
+      clearAccount();
+      sessionStorage.removeItem("orbit-pending");
+      localStorage.removeItem("token");
+      localStorage.removeItem("userID");
+      router.replace("/signin");
+      router.refresh();
+    } catch {
+      setLogoutError(
+        "Sign-out could not be completed. Check your connection and try again.",
+      );
+    } finally {
+      setSigningOut(false);
+    }
   }
   return (
     <>
       <header className="app-header">
-        <Link href="/" className="brand">
+        <Link
+          href="/dashboard"
+          className="brand"
+          aria-label="OrbitLedger Dashboard"
+        >
           <span className="brand-mark" aria-hidden="true">
             O
           </span>
@@ -49,15 +66,27 @@ export default function AppHeader() {
           >
             Dashboard
           </Link>
+          <Link href="/">Home</Link>
+          <Link
+            href="/account"
+            aria-current={path === "/account" ? "page" : undefined}
+          >
+            Account
+          </Link>
         </nav>
         <div className="header-account">
           <span className="paper-tag">Paper account</span>
           <ThemeToggle />
-          <button className="quiet" onClick={logout}>
-            Sign out
+          <button className="quiet" onClick={logout} disabled={signingOut}>
+            {signingOut ? "Signing out…" : "Sign out"}
           </button>
         </div>
       </header>
+      {logoutError && (
+        <div className="notice error" role="alert">
+          {logoutError}
+        </div>
+      )}
       {mutation.pending && (
         <div className="notice" role="status">
           A saved paper account request needs reconciliation. Its original
