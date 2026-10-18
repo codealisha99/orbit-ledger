@@ -12,8 +12,13 @@ interface typeofredishPriceData {
   bidPrice: number;
   decimals: number;
   time: number;
+  tradeId: number;
+  price: number;
+  quantity: string;
+  source: string;
 }
 
+redis.on("error", (error) => console.error("[REDIS]", error.message));
 let tradeListener: ((tradeData: Trades) => Promise<void>) | null = null;
 let isShuttingDown = false;
 
@@ -26,13 +31,17 @@ export async function startRedis() {
       try {
         const midPrice = tradeData.price;
         const spreadAmount = Math.floor(midPrice * 0.005); // 0.5% spread
-        
+
         const redisPriceData: typeofredishPriceData = {
           symbol: tradeData.symbol.replace("USDT", ""),
           askPrice: midPrice + spreadAmount, // Higher price for buying
           bidPrice: midPrice - spreadAmount, // Lower price for selling
           decimals: 4,
-          time: Math.floor(tradeData.timestamp / 1000),
+          time: tradeData.timestamp,
+          tradeId: tradeData.tradeId,
+          price: tradeData.price,
+          quantity: tradeData.quantity,
+          source: "Binance",
         };
         const channel = tradeData.symbol.replace("USDT", ""); // Something like "SOL " Btc"
         await redis.publish(channel, JSON.stringify(redisPriceData));
@@ -57,26 +66,8 @@ export async function startRedis() {
   }
 }
 
-async function gracefulShutdown(signal: string) {
+export async function stopRedis() {
   isShuttingDown = true;
-  console.log(`${signal} received: Shutting down Redis publisher...`);
-
-  try {
-    if (tradeListener) {
-      binanceEmitter.removeListener("trade", tradeListener);
-    }
-
-    if (redis.isOpen) {
-      await redis.quit();
-      console.log("Redis disconnected successfully");
-    }
-  } catch (error) {
-    console.error("Error during Redis shutdown:", error);
-    if (redis.isOpen) {
-      await redis.disconnect();
-    }
-  }
+  if (tradeListener) binanceEmitter.removeListener("trade", tradeListener);
+  if (redis.isOpen) await redis.quit();
 }
-
-process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
-process.on("SIGINT", () => gracefulShutdown("SIGINT"));

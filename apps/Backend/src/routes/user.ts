@@ -1,7 +1,8 @@
+import jwt from "jsonwebtoken";
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { v5 as uuidv5 } from "uuid"; //Generates same ID for same email
-import { CreateUser, findUser, findUSerId, UserBalance } from "../data/store";
+import { INITIAL_BALANCE_CENTS, CreateUser, findUSerId } from "../data/store";
 import { generateToken } from "../utils/jwt";
 import { hashPassword, comparePassword } from "../utils/password";
 import { authMiddleware } from "../middleware/auth";
@@ -19,7 +20,7 @@ userRouter.post(
   authRateLimit,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { email, password } = req.body as SignupRequest;
+      let { email, password } = req.body as SignupRequest;
       console.log(`[SIGNUP] Attempt for email: ${email}`);
 
       const validate = signupSchema.safeParse({ email, password });
@@ -29,7 +30,10 @@ userRouter.post(
           .json({ error: "Invalid Input", details: validate.error.issues });
         return;
       }
-      const exsistingUser = await prisma.user.findUnique({ where: { email } });
+      email = email.trim().toLowerCase();
+      const exsistingUser = await prisma.user.findFirst({
+        where: { email: { equals: email, mode: "insensitive" } },
+      });
       if (exsistingUser) {
         console.log(`[SIGNUP] User already exists: ${email}`);
         res.status(409).json({ error: "User already exists" });
@@ -44,10 +48,15 @@ userRouter.post(
           userId: UserId,
           email: email,
           password: hashedPassword,
-          balanceCents: 500000,
+          balanceCents: INITIAL_BALANCE_CENTS,
         },
       });
-      const newUser = CreateUser(UserId, email, hashedPassword);
+      const newUser = CreateUser(
+        UserId,
+        email,
+        hashedPassword,
+        INITIAL_BALANCE_CENTS,
+      );
       const newToken = generateToken(UserId);
 
       res.status(201).json({
@@ -60,67 +69,78 @@ userRouter.post(
       console.error("[SIGNUP] Error", err);
       res.status(500).json({ error: "Internal server error in signup" });
     }
-  }
+  },
 );
 
-userRouter.post("/signin", authRateLimit, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { email, password } = req.body as SigninRequest;
-    const validate = signinSchema.safeParse({ email, password });
-    if (!validate.success) {
-      res.status(400).json({
-        error: "Invalid Input",
-        details: validate.error.issues,
-      });
-      return;
-    }
-    console.log(`[SIGNIN] Attempt for email: ${email}`);
-    const user = await prisma.user.findUnique({
-    where: { email }
-  });
-    if (!user) {
-      console.log(`[SIGNIN] User not found: ${email}`);
-      res.status(401).json({ error: "Invalid credentials" });
-      return;
-    }
+userRouter.post(
+  "/signin",
+  authRateLimit,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { email, password } = req.body as SigninRequest;
+      const validate = signinSchema.safeParse({ email, password });
+      if (!validate.success) {
+        res.status(400).json({
+          error: "Invalid Input",
+          details: validate.error.issues,
+        });
+        return;
+      }
+      console.log(`[SIGNIN] Attempt for email: ${email}`);
+      let user = await prisma.user.findUnique({ where: { email } });
+      if (!user) {
+        const matches = await prisma.user.findMany({
+          where: { email: { equals: email, mode: "insensitive" } },
+          take: 2,
+        });
+        if (matches.length === 1) user = matches[0]!;
+      }
+      if (!user) {
+        console.log(`[SIGNIN] User not found: ${email}`);
+        res.status(401).json({ error: "Invalid credentials" });
+        return;
+      }
 
-    if (user.provider && (!user.password || user.password === "")) {
-      console.log(`[SIGNIN] OAuth user attempting password login: ${email}`);
-      res.status(401).json({ 
-        error: `This account uses ${user.provider} login. Please sign in with ${user.provider}.` 
-      });
-      return;
-    }
+      if (user.provider && (!user.password || user.password === "")) {
+        console.log(`[SIGNIN] OAuth user attempting password login: ${email}`);
+        res.status(401).json({
+          error: `This account uses ${user.provider} login. Please sign in with ${user.provider}.`,
+        });
+        return;
+      }
 
-    const isPasswordValid = comparePassword(password, user.password);
-    if (!isPasswordValid) {
-      console.log(`[SIGNIN] Invalid password for: ${email}`);
-      res.status(401).json({ error: "Invalid credentials" });
-      return;
+      const isPasswordValid = comparePassword(password, user.password);
+      if (!isPasswordValid) {
+        console.log(`[SIGNIN] Invalid password for: ${email}`);
+        res.status(401).json({ error: "Invalid credentials" });
+        return;
+      }
+      const token = generateToken(user.userId);
+      const inMemory = findUSerId(user.userId);
+      if (!inMemory) {
+        CreateUser(user.userId, user.email, user.password, user.balanceCents);
+        console.log(
+          `[SIGNIN] User ${user.userId} loaded into memory from database`,
+        );
+      }
+      res.status(200).json({
+        message: "Login successful",
+        userId: user.userId,
+        token: token,
+      });
+      console.log(`[SIGNIN] Login successful: ${email}`);
+    } catch (err) {
+      console.error("[SIGNIN] Error", err);
+      res.status(500).json({ error: "Internal server error in signin" });
     }
-    const token = generateToken(user.userId);
-    const inMemory = findUSerId(user.userId);
-    if (!inMemory) {
-    CreateUser(user.userId, user.email, user.password, user.balanceCents);
-    console.log(`[SIGNIN] User ${user.userId} loaded into memory from database`);
-  }
-    res.status(200).json({
-      message: "Login successful",
-      userId: user.userId,
-      token: token,
-    });
-    console.log(`[SIGNIN] Login successful: ${email}`);
-  } catch (err) {
-    console.error("[SIGNIN] Error", err);
-    res.status(500).json({ error: "Internal server error in signin" });
-  }
-});
+  },
+);
 
 userRouter.get(
   "/balance",
   authMiddleware,
   apiRateLimit,
-  (req: Request, res: Response): void => {
+  async (req: Request, res: Response): Promise<void> => {
     try {
       const userId = req.userId;
       if (!userId) {
@@ -128,26 +148,36 @@ userRouter.get(
         return;
       }
       console.log(`[BALANCE] Balance check for user: ${userId}`);
-      const user = findUSerId(userId);
+      const user = await prisma.user.findUnique({ where: { userId } });
       if (!user) {
         console.log(`[BALANCE] User not found: ${userId}`);
         res.status(404).json({ error: "User not found" });
         return;
       }
-      const balanceusd = fromInternalUSD(user.balance.usd_balance);
+      const balanceusd = fromInternalUSD(user.balanceCents);
       res.status(200).json({
         userId: user.userId,
         email: user.email,
         balance: {
           usd: balanceusd, // $5000
-          cents: user.balance.usd_balance, // 500000
+          cents: user.balanceCents, // 500000
         },
-        assets: user.assets, // Crypto holdings (for future)
+        assets: {}, // Crypto holdings (for future)
       });
       console.log(`[BALANCE] Balance retrieved for ${userId}: $${balanceusd}`);
     } catch (err) {
       console.error("[BALANCE] Error", err);
       res.status(500).json({ error: "Internal server error" });
     }
-  }
+  },
 );
+
+userRouter.get("/ws-ticket", authMiddleware, apiRateLimit, (req, res) => {
+  res.json({
+    ticket: jwt.sign(
+      { userId: req.userId, purpose: "websocket" },
+      process.env.JWT_SECRET!,
+      { expiresIn: 60 },
+    ),
+  });
+});

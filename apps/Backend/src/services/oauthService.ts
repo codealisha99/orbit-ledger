@@ -1,19 +1,20 @@
 import { prisma } from "@orbitledger/database";
 import { v4 as uuidv4 } from "uuid";
-import { StoreData, CreateUser } from "../data/store";
+import { INITIAL_BALANCE_CENTS, StoreData, CreateUser } from "../data/store";
 import type { Asset } from "@orbitledger/shared";
 
 export interface OAuthProfile {
   provider: "google" | "github";
   providerId: string;
   email: string;
+  emailVerified: boolean;
   name?: string;
   avatarUrl?: string;
 }
 
 export async function findOrCreateOAuthUser(profile: OAuthProfile) {
   console.log(
-    `[OAuth] Processing ${profile.provider} login for: ${profile.email}`
+    `[OAuth] Processing ${profile.provider} login for: ${profile.email}`,
   );
 
   let user = await prisma.user.findFirst({
@@ -25,7 +26,7 @@ export async function findOrCreateOAuthUser(profile: OAuthProfile) {
 
   if (user) {
     console.log(
-      `[OAuth] Existing ${profile.provider} user found: ${user.email}`
+      `[OAuth] Existing ${profile.provider} user found: ${user.email}`,
     );
 
     if (!StoreData.has(user.userId)) {
@@ -47,37 +48,16 @@ export async function findOrCreateOAuthUser(profile: OAuthProfile) {
   });
 
   if (existingEmailUser) {
-    if (!existingEmailUser.provider) {
-      user = await prisma.user.update({
-        where: { email: profile.email },
-        data: {
-          provider: profile.provider,
-          providerId: profile.providerId,
-          emailVerified: true,
-          avatarUrl: profile.avatarUrl,
-        },
-      });
-      console.log(
-        `[OAuth] Linked ${profile.provider} to existing user: ${user.email}`
-      );
-
-      const memoryUser = StoreData.get(user.userId);
-      if (memoryUser) {
-        StoreData.set(user.userId, memoryUser);
-      }
-
-      return user;
-    } else if (existingEmailUser.provider !== profile.provider) {
-      throw new Error(
-        `Email already registered with ${existingEmailUser.provider}. Please sign in with ${existingEmailUser.provider}.`
-      );
-    } else {
-      return existingEmailUser;
-    }
+    // Linking identities requires an authenticated account flow, never an email match.
+    throw new Error(
+      "An account with this email exists. Sign in with its original method.",
+    );
   }
+  if (!profile.emailVerified)
+    throw new Error("A verified provider email is required.");
 
   const userId = uuidv4();
-  const initialBalance = 500000; // $5000 in cents
+  const initialBalance = INITIAL_BALANCE_CENTS; // $5000 in cents
 
   user = await prisma.user.create({
     data: {
@@ -92,14 +72,14 @@ export async function findOrCreateOAuthUser(profile: OAuthProfile) {
     },
   });
 
-  CreateUser(userId, profile.email, "");
+  CreateUser(userId, profile.email, "", user.balanceCents);
 
   console.log(`[OAuth] Created new ${profile.provider} user: ${user.email}`);
   return user;
 }
 
 export async function isOAuthUser(
-  email: string
+  email: string,
 ): Promise<{ isOAuth: boolean; provider?: string }> {
   const user = await prisma.user.findUnique({
     where: { email },

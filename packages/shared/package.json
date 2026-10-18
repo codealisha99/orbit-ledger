@@ -8,5 +8,7 @@
   },
   "peerDependencies": {
     "typescript": "^5"
-  }
+  },
+  "exports": "./src/index.ts",
+  "types": "./src/index.ts"
 }

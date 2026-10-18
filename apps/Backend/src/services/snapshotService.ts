@@ -1,77 +1,56 @@
 import { prisma } from "@orbitledger/database";
-import { StoreData, orderStorageMap } from "../data/store";
-import { SnapShot_Interval } from "../types";
-
-const SNAPSHOT_INTERVAL = 10000; // 10 seconds
-let snapshotTimer: NodeJS.Timeout | null = null;
-
-async function saveSnapshot() {
+import { accountSummary } from "./accountService";
+let timer: ReturnType<typeof setTimeout> | undefined;
+let running = false;
+async function saveSnapshots() {
   try {
-    const startTime = Date.now();
-
-    const users = Array.from(StoreData.values());
-    const userSnapshots = users.map((user) => ({
-      userId: user.userId,
-      balanceCents: user.balance.usd_balance,
-    }));
-
-    if (userSnapshots.length > 0) {
-      await prisma.userSnapshot.createMany({
-        data: userSnapshots,
+    const users = await prisma.user.findMany({ select: { userId: true } });
+    for (const user of users) {
+      const s = await accountSummary(user.userId);
+      await prisma.equitySnapshot.create({
+        data: {
+          userId: user.userId,
+          availableCents: s.availableCents,
+          reservedCents: s.reservedCents,
+          pnlCents: s.openPnlCents,
+          equityCents: s.equityCents,
+          stale: s.stale,
+        },
       });
     }
-
-    const allOrders: any[] = [];
-    orderStorageMap.forEach((userOrders) => {
-      userOrders.forEach((order) => {
-        allOrders.push({
-          orderId: order.orderId,
-          userId: order.userId,
-          asset: order.asset,
-          type: order.type,
-          margin: order.margin,
-          initialMargin: order.initialMargin,
-          addedMargin: order.addedMargin || 0,
-          leverage: order.leverage,
-          openPrice: order.openPrice,
-          liquidationPrice: order.liquidationPrice,
-          takeProfit: order.takeProfit || null,
-          stopLoss: order.stopLoss || null,
-          openedAt: new Date(order.openTimestamp),
-          trailingStopLossEnabled: order.trailingStopLoss?.enabled || false,
-          trailingStopLossDistance: order.trailingStopLoss?.trailingDistance || null,
-          trailingStopLossHighestPrice: order.trailingStopLoss?.highestPrice || null,
-          trailingStopLossLowestPrice: order.trailingStopLoss?.lowestPrice || null,
-        });
-      });
+    const cutoff = new Date(Date.now() - 366 * 86400000);
+    await prisma.equitySnapshot.deleteMany({
+      where: { createdAt: { lt: cutoff } },
     });
-
-    if (allOrders.length > 0) {
-      await prisma.orderSnapshot.createMany({
-        data: allOrders,
+    // Legacy snapshots serve only operational recovery and are bounded to seven days.
+    const retentionDays = Number(
+      process.env.LEGACY_SNAPSHOT_RETENTION_DAYS ?? 0,
+    );
+    if (retentionDays > 0) {
+      const legacyCutoff = new Date(Date.now() - retentionDays * 86400000);
+      await prisma.userSnapshot.deleteMany({
+        where: { snapshotAt: { lt: legacyCutoff } },
+      });
+      await prisma.orderSnapshot.deleteMany({
+        where: { snapshotAt: { lt: legacyCutoff } },
       });
     }
-
-    const duration = Date.now() - startTime;
-    console.log(
-      `[SNAPSHOT] Saved ${userSnapshots.length} users, ${allOrders.length} orders in ${duration}ms`
-    );
+    await prisma.loginCode.deleteMany({
+      where: { expiresAt: { lt: new Date() } },
+    });
   } catch (error) {
-    console.error("[SNAPSHOT] Error saving snapshot:", error);
+    console.error("[SNAPSHOT]", error);
+  } finally {
+    if (running) timer = setTimeout(saveSnapshots, 300000);
   }
 }
-
 export function startSnapshotService() {
-  console.log("[SNAPSHOT] Starting snapshot service...");
-  saveSnapshot(); // Save immediately on startup
-  snapshotTimer = setInterval(saveSnapshot, SNAPSHOT_INTERVAL);
-  console.log(`[SNAPSHOT] Service started (interval: ${SNAPSHOT_INTERVAL}ms)`);
-}
-
-export function stopSnapshotService() {
-  if (snapshotTimer) {
-    clearInterval(snapshotTimer);
-    snapshotTimer = null;
-    console.log("[SNAPSHOT] Service stopped");
+  if (!running) {
+    running = true;
+    void saveSnapshots();
   }
+}
+export function stopSnapshotService() {
+  running = false;
+  if (timer) clearTimeout(timer);
 }

@@ -1,209 +1,408 @@
 "use client";
-
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { findUserAmount, getopentrades, getclosedtrades } from "@/api/trade";
-import { calculatePnlCents, toDisplayPrice, toDisplayPriceUSD } from "@/utils/utils";
-import { subscribePrices, type LivePrices } from "@/utils/price_store";
-
-interface OpenOrder {
-  orderId: string;
-  type: "buy" | "sell";
-  margin: number;
-  leverage: number;
-  openPrice: number;
-  asset?: string;
+import AppHeader from "@/components/AppHeader";
+import EquityHistory from "@/components/EquityHistory";
+import { useAccount, type Execution } from "@/lib/account";
+import { api } from "@/lib/client";
+import { money, signedMoney } from "@orbitledger/shared";
+interface Performance {
+  feesComplete: boolean;
+  grossPnlCents: number;
+  netPnlCents: number | null;
+  entryCostsCents: number;
+  exitFeesCents: number;
+  completedPositions: number;
+  winningPositions: number;
+  executions: number;
 }
-
-interface ClosedOrder extends OpenOrder {
-  closePrice: number;
-  pnl: number;
-}
-
 export default function Dashboard() {
-  const router = useRouter();
-  const [balance, setBalance] = useState<number>(0);
-  const [openOrders, setOpenOrders] = useState<OpenOrder[]>([]);
-  const [closedOrders, setClosedOrders] = useState<ClosedOrder[]>([]);
-  const [livePrices, setLivePrices] = useState<LivePrices>({ BTC: { bid: 0, ask: 0 }, ETH: { bid: 0, ask: 0 }, SOL: { bid: 0, ask: 0 } });
-  const [isLoading, setIsLoading] = useState(true);
-
+  const { summary, loading, error } = useAccount();
+  const [recent, setRecent] = useState<Execution[]>([]);
+  const [performance, setPerformance] = useState<Performance | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
   useEffect(() => {
-    async function init() {
-      try {
-        const userData = await findUserAmount();
-        if (!userData || !userData.balance || userData.error) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("userID");
-          router.push("/signin");
-          return;
-        }
-        setBalance(userData.balance.usd ?? 0);
-
-        const token = localStorage.getItem("token") || "";
-        const [openRes, closedRes] = await Promise.all([
-          getopentrades(token),
-          getclosedtrades(token),
-        ]);
-
-        setOpenOrders(openRes?.data?.orders ?? []);
-        setClosedOrders(closedRes?.data?.orders ?? []);
-      } catch {
-        localStorage.removeItem("token");
-        localStorage.removeItem("userID");
-        router.push("/signin");
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    init();
-  }, [router]);
-
-  useEffect(() => {
-    return subscribePrices(setLivePrices);
-  }, []);
-
-  const openPnlCents = openOrders.reduce((sum, order) => {
-    const sym = (order.asset || "BTC").replace("USDT", "") as keyof LivePrices;
-    const p = livePrices[sym] ?? { bid: 0, ask: 0 };
-    if (p.bid <= 0 && p.ask <= 0) return sum;
-    const closePrice = order.type === "buy" ? p.bid : p.ask;
-    return sum + calculatePnlCents({
-      side: order.type,
-      openPrice: order.openPrice,
-      closePrice: toDisplayPrice(closePrice),
-      marginCents: order.margin,
-      leverage: order.leverage,
-    });
-  }, 0);
-
-  const openPnlUsd = toDisplayPriceUSD(Math.abs(openPnlCents)) * (openPnlCents >= 0 ? 1 : -1);
-  const equity = balance + openPnlUsd;
-
-  const realisedPnlCents = closedOrders.reduce((sum, o) => sum + (o.pnl ?? 0), 0);
-  const realisedPnlUsd = toDisplayPriceUSD(Math.abs(realisedPnlCents)) * (realisedPnlCents >= 0 ? 1 : -1);
-
-  const wins = closedOrders.filter((o) => (o.pnl ?? 0) > 0).length;
-  const winRate = closedOrders.length > 0 ? ((wins / closedOrders.length) * 100).toFixed(1) : "—";
-
-  const largestOpen = openOrders.reduce<OpenOrder | null>((best, o) => {
-    if (!best) return o;
-    return o.margin > best.margin ? o : best;
-  }, null);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[var(--nt-bg)] flex items-center justify-center">
-        <div className="text-[var(--nt-muted)] text-sm">Loading dashboard...</div>
-      </div>
-    );
-  }
-
+    const abort = new AbortController();
+    Promise.all([
+      api<{ orders: Execution[] }>("trade/history?limit=5", {
+        signal: abort.signal,
+      }),
+      api<Performance>("trade/performance", { signal: abort.signal }),
+    ])
+      .then(([history, stats]) => {
+        setRecent(history.orders);
+        setPerformance(stats);
+        setHistoryError(null);
+      })
+      .catch((e) => {
+        if (!abort.signal.aborted) setHistoryError(e.message);
+      });
+    return () => abort.abort();
+  }, [summary?.version, retry]);
+  const exposure =
+    summary?.orders.reduce(
+      (n, p) => n + (p.needsReview ? 0 : p.notionalCents),
+      0,
+    ) ?? 0;
   return (
-    <div className="min-h-screen bg-[var(--nt-bg)] text-[var(--nt-text)]">
-      <div className="fixed inset-0 bg-[var(--nt-bg)]">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-gradient-to-br from-white/5 via-white/0 to-transparent blur-3xl"></div>
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
-      </div>
-
-      <div className="relative z-10 max-w-5xl mx-auto p-6">
-        <div className="flex items-center justify-between mb-8">
+    <div className="workspace">
+      <AppHeader />
+      <main className="dashboard-main">
+        <div className="page-heading">
           <div>
-            <h1 className="text-2xl font-bold text-[var(--nt-text)]">Dashboard</h1>
-            <p className="text-sm text-[var(--nt-muted)] mt-1">Account overview</p>
+            <h1>Your paper account</h1>
+            <p>Value, exposure, and the results of your decisions.</p>
           </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => router.push("/trading")}
-              className="bg-[color:color-mix(in_srgb,var(--nt-accent)_10%,transparent)] hover:bg-[color:color-mix(in_srgb,var(--nt-accent)_20%,transparent)] text-[var(--nt-accent)] border border-[color:color-mix(in_srgb,var(--nt-accent)_30%,transparent)] px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              Go to Trading
-            </button>
-            <button
-              onClick={() => {
-                localStorage.removeItem("token");
-                localStorage.removeItem("userID");
-                router.push("/signin");
-              }}
-              className="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              Logout
-            </button>
-          </div>
+          <Link className="primary" href="/trading">
+            Open trading workspace
+          </Link>
         </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <div className="bg-[color:color-mix(in_srgb,var(--nt-surface)_90%,transparent)] backdrop-blur-xl border border-[var(--nt-border)] rounded-xl p-5">
-            <div className="text-xs text-[var(--nt-muted)] uppercase tracking-wider mb-2">Equity</div>
-            <div className="text-2xl font-bold text-[var(--nt-text)]">${equity.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-            <div className="text-xs text-[var(--nt-muted)] mt-1">Balance + Open P&L</div>
+        {!summary ? (
+          <div className="surface empty">
+            {loading
+              ? "Loading account overview…"
+              : error || "Account overview is unavailable."}
           </div>
-
-          <div className="bg-[color:color-mix(in_srgb,var(--nt-surface)_90%,transparent)] backdrop-blur-xl border border-[var(--nt-border)] rounded-xl p-5">
-            <div className="text-xs text-[var(--nt-muted)] uppercase tracking-wider mb-2">Available Balance</div>
-            <div className="text-2xl font-bold text-[var(--nt-text)]">${balance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-            <div className="text-xs text-[var(--nt-muted)] mt-1">USD</div>
-          </div>
-
-          <div className="bg-[color:color-mix(in_srgb,var(--nt-surface)_90%,transparent)] backdrop-blur-xl border border-[var(--nt-border)] rounded-xl p-5">
-            <div className="text-xs text-[var(--nt-muted)] uppercase tracking-wider mb-2">Unrealised P&L</div>
-            <div className={`text-2xl font-bold ${openPnlUsd >= 0 ? "text-green-400" : "text-red-400"}`}>
-              {openPnlUsd >= 0 ? "+" : ""}${Math.abs(openPnlUsd).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </div>
-            <div className="text-xs text-[var(--nt-muted)] mt-1">{openOrders.length} open position{openOrders.length !== 1 ? "s" : ""}</div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-          <div className="bg-[color:color-mix(in_srgb,var(--nt-surface)_90%,transparent)] backdrop-blur-xl border border-[var(--nt-border)] rounded-xl p-5">
-            <h2 className="text-sm font-semibold text-[var(--nt-text)] mb-4 flex items-center justify-between">
-              Open Positions
-              <span className="text-xs bg-[color:color-mix(in_srgb,var(--nt-accent)_10%,transparent)] text-[var(--nt-accent)] px-2 py-1 rounded-md">{openOrders.length}</span>
-            </h2>
-            {openOrders.length === 0 ? (
-              <p className="text-sm text-[var(--nt-muted)]">No open positions</p>
-            ) : (
-              <div className="space-y-2">
-                {largestOpen && (
-                  <div className="text-xs text-[var(--nt-muted)]">
-                    Largest: <span className="text-[var(--nt-text)] font-medium">{largestOpen.asset || largestOpen.type.toUpperCase()}</span>
-                    {" · "}margin ${toDisplayPriceUSD(largestOpen.margin).toFixed(2)}
-                  </div>
-                )}
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-[var(--nt-muted)]">Total unrealised P&L</span>
-                  <span className={`font-semibold ${openPnlUsd >= 0 ? "text-green-400" : "text-red-400"}`}>
-                    {openPnlUsd >= 0 ? "+" : ""}${Math.abs(openPnlUsd).toFixed(2)}
-                  </span>
+        ) : (
+          <>
+            <section className="account-metrics" aria-label="Account value">
+              {[
+                [
+                  "Equity",
+                  summary.equityCents,
+                  "Available cash + reserved collateral + open P&L",
+                ],
+                [
+                  "Available cash",
+                  summary.availableCents,
+                  "Ready to reserve for a new position",
+                ],
+                [
+                  "Reserved collateral",
+                  summary.reservedCents,
+                  `${summary.orders.length} open position${summary.orders.length === 1 ? "" : "s"}`,
+                ],
+                [
+                  "Open P&L",
+                  summary.openPnlCents,
+                  "Gross valuation before exit costs",
+                ],
+              ].map(([label, value, description]) => (
+                <div className="metric" key={String(label)}>
+                  <span>{label}</span>
+                  <strong
+                    className={
+                      label === "Open P&L" && typeof value === "number"
+                        ? value < 0
+                          ? "negative"
+                          : "positive"
+                        : ""
+                    }
+                  >
+                    {typeof value === "number"
+                      ? label === "Open P&L"
+                        ? signedMoney(value)
+                        : money(value)
+                      : "Unavailable"}
+                  </strong>
+                  <small>{description}</small>
                 </div>
-              </div>
-            )}
-          </div>
-
-          <div className="bg-[color:color-mix(in_srgb,var(--nt-surface)_90%,transparent)] backdrop-blur-xl border border-[var(--nt-border)] rounded-xl p-5">
-            <h2 className="text-sm font-semibold text-[var(--nt-text)] mb-4 flex items-center justify-between">
-              Performance
-              <span className="text-xs bg-[color:color-mix(in_srgb,var(--nt-surface2)_10%,transparent)] text-[var(--nt-text)] px-2 py-1 rounded-md">{closedOrders.length} closed</span>
-            </h2>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-[var(--nt-muted)]">Total Realised P&L</span>
-                <span className={`font-semibold ${realisedPnlUsd >= 0 ? "text-green-400" : "text-red-400"}`}>
-                  {realisedPnlUsd >= 0 ? "+" : ""}${Math.abs(realisedPnlUsd).toFixed(2)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-[var(--nt-muted)]">Win Rate</span>
-                <span className="font-semibold text-[var(--nt-text)]">{winRate}{winRate !== "—" ? "%" : ""}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-[var(--nt-muted)]">Winning Trades</span>
-                <span className="font-semibold text-green-400">{wins} / {closedOrders.length}</span>
-              </div>
+              ))}
+            </section>
+            <p className="valuation-note">
+              {summary.orders.some((p) => p.needsReview)
+                ? "Historical exposure needs reconciliation. Equity and aggregate open P&L are unavailable until reviewed."
+                : summary.stale
+                  ? "Some market quotes are stale. Equity and open P&L remain unavailable until every open position has a fresh quote."
+                  : `Valued using simulated close quotes · ${new Date(summary.valuedAt).toLocaleTimeString("en-GB", { timeZone: "UTC" })} UTC`}
+            </p>
+            <EquityHistory />
+            <div className="dashboard-columns">
+              <section className="surface exposure-panel">
+                <div className="section-heading">
+                  <h2>Exposure & risk</h2>
+                  <span>{money(exposure)} verified notional</span>
+                </div>
+                {summary.orders.length === 0 ? (
+                  <p className="empty">
+                    No market exposure. Your virtual cash is available for
+                    practice.
+                  </p>
+                ) : (
+                  <>
+                    {summary.orders.some((p) => p.needsReview) && (
+                      <p className="notice error">
+                        Some historical exposure is unverified. Totals include
+                        verified positions only.
+                      </p>
+                    )}
+                    {["BTC", "ETH", "SOL"].map((asset) => {
+                      const positions = summary.orders.filter(
+                        (p) => p.asset === asset && !p.needsReview,
+                      );
+                      const total = positions.reduce(
+                        (n, p) => n + p.notionalCents,
+                        0,
+                      );
+                      return (
+                        total > 0 && (
+                          <div key={asset} className="exposure-row">
+                            <div>
+                              <b>{asset}</b>
+                              <span>
+                                {money(total)} ·{" "}
+                                {((total / exposure) * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                            <meter
+                              min="0"
+                              max={exposure}
+                              value={total}
+                              aria-label={`${asset} notional exposure`}
+                            />
+                            <small>
+                              {money(
+                                positions.reduce((n, p) => n + p.margin, 0),
+                              )}{" "}
+                              collateral ·{" "}
+                              {positions.filter((p) => p.type === "buy").length}{" "}
+                              long /{" "}
+                              {
+                                positions.filter((p) => p.type === "sell")
+                                  .length
+                              }{" "}
+                              short
+                            </small>
+                          </div>
+                        )
+                      );
+                    })}
+                    <div className="risk-notice">
+                      {
+                        summary.orders.filter(
+                          (p) => !p.stopLoss && !p.trailingStopLossEnabled,
+                        ).length
+                      }{" "}
+                      positions without a stop loss. Stops cannot guarantee an
+                      execution price.
+                    </div>
+                    <h3>Distance to liquidation</h3>
+                    {summary.orders.map((p) => (
+                      <div className="risk-row" key={p.orderId}>
+                        <span>
+                          {p.asset} {p.type === "buy" ? "long" : "short"}
+                        </span>
+                        <b>
+                          {p.markPrice
+                            ? `${Math.max(0, ((p.type === "buy" ? p.markPrice - p.liquidationPrice : p.liquidationPrice - p.markPrice) / p.markPrice) * 100).toFixed(2)}%`
+                            : "Quote unavailable"}
+                        </b>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </section>
+              <section className="surface performance-panel">
+                <div className="section-heading">
+                  <h2>Realised performance</h2>
+                </div>
+                {historyError ? (
+                  <p className="notice error">
+                    {historyError}
+                    <button onClick={() => setRetry((n) => n + 1)}>
+                      Retry performance
+                    </button>
+                  </p>
+                ) : !performance ? (
+                  <p className="empty">Loading completed trades…</p>
+                ) : (
+                  <>
+                    <div
+                      className={`performance-total ${performance.netPnlCents !== null && performance.netPnlCents < 0 ? "negative" : "positive"}`}
+                    >
+                      {performance.feesComplete &&
+                      performance.netPnlCents !== null
+                        ? signedMoney(performance.netPnlCents)
+                        : "Legacy costs unavailable"}
+                    </div>
+                    <p className="muted">
+                      Net realised P&L, including allocated entry costs and exit
+                      fees. Net reporting is unavailable when legacy records
+                      have unknown fees.
+                    </p>
+                    <dl className="trade-preview">
+                      <div>
+                        <dt>Gross realised P&L</dt>
+                        <dd>{signedMoney(performance.grossPnlCents)}</dd>
+                      </div>
+                      <div>
+                        <dt>Allocated entry costs</dt>
+                        <dd>{money(performance.entryCostsCents)}</dd>
+                      </div>
+                      <div>
+                        <dt>Exit fees</dt>
+                        <dd>{money(performance.exitFeesCents)}</dd>
+                      </div>
+                      <div>
+                        <dt>Completed positions</dt>
+                        <dd>{performance.completedPositions}</dd>
+                      </div>
+                      <div>
+                        <dt>Winning completed positions</dt>
+                        <dd>
+                          {performance.feesComplete &&
+                          performance.completedPositions
+                            ? `${((performance.winningPositions / performance.completedPositions) * 100).toFixed(1)}%`
+                            : "—"}
+                        </dd>
+                      </div>
+                    </dl>
+                    <p className="muted">
+                      Win rate groups partial exits with their parent and
+                      excludes positions still open.
+                    </p>
+                  </>
+                )}
+              </section>
             </div>
-          </div>
-        </div>
-      </div>
+            <section className="surface">
+              <div className="section-heading">
+                <h2>Current positions</h2>
+                <Link href="/trading">Manage positions</Link>
+              </div>
+              {summary.orders.length === 0 ? (
+                <p className="empty">
+                  No open positions. Choose a market in the trading workspace to
+                  begin.
+                </p>
+              ) : (
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Market / side</th>
+                        <th>Quantity</th>
+                        <th>Collateral</th>
+                        <th>Entry / current</th>
+                        <th>Open P&L</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {summary.orders.map((p) => (
+                        <tr key={p.orderId}>
+                          <td>
+                            <b>{p.asset}</b>
+                            <span>
+                              {p.type === "buy" ? "Long" : "Short"} ·{" "}
+                              {p.needsReview
+                                ? "Exposure review"
+                                : p.effectiveLeverage.toFixed(2) +
+                                  "× effective"}
+                            </span>
+                          </td>
+                          <td>
+                            {p.needsReview
+                              ? "Unavailable"
+                              : p.quantity.toFixed(6)}
+                          </td>
+                          <td>{money(p.margin)}</td>
+                          <td>
+                            {money(p.openPrice / 100)}
+                            <span>
+                              {p.markPrice
+                                ? money(p.markPrice / 100)
+                                : p.needsReview
+                                  ? "Exposure review required"
+                                  : "Stale quote"}
+                            </span>
+                          </td>
+                          <td
+                            className={
+                              p.pnlCents !== null && p.pnlCents < 0
+                                ? "negative"
+                                : "positive"
+                            }
+                          >
+                            {p.pnlCents === null
+                              ? "Unavailable"
+                              : signedMoney(p.pnlCents)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+            <section className="surface">
+              <div className="section-heading">
+                <h2>Recent completed trades</h2>
+                <Link href="/trading#account-activity">Full trade history</Link>
+              </div>
+              {historyError ? (
+                <p className="notice error">
+                  {historyError}
+                  <button onClick={() => setRetry((n) => n + 1)}>
+                    Retry trades
+                  </button>
+                </p>
+              ) : recent.length === 0 ? (
+                <p className="empty">
+                  Completed exits and their receipts will appear here.
+                </p>
+              ) : (
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Market / side</th>
+                        <th>Closed (UTC)</th>
+                        <th>Reason</th>
+                        <th>Gross / net P&L</th>
+                        <th>Receipt</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recent.map((o) => (
+                        <tr key={o.orderId}>
+                          <td>
+                            <b>{o.asset}</b>
+                            <span>{o.type === "buy" ? "Long" : "Short"}</span>
+                          </td>
+                          <td>
+                            {new Date(o.closedAt).toLocaleString("en-GB", {
+                              timeZone: "UTC",
+                            })}
+                          </td>
+                          <td>{o.closeReason.replaceAll("_", " ")}</td>
+                          <td
+                            className={
+                              o.netPnlCents !== null && o.netPnlCents < 0
+                                ? "negative"
+                                : "positive"
+                            }
+                          >
+                            {signedMoney(o.pnl)} /{" "}
+                            {o.feesRecorded && o.netPnlCents !== null
+                              ? signedMoney(o.netPnlCents)
+                              : "Unknown fees"}
+                          </td>
+                          <td>{o.orderId.slice(0, 8)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </>
+        )}
+        <footer className="app-footer">
+          Paper trading with virtual USD collateral. No deposits, withdrawals,
+          or real exchange orders.
+        </footer>
+      </main>
     </div>
   );
 }

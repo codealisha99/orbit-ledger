@@ -1,3 +1,4 @@
+import "../../../packages/database/src/env";
 import { config as loadEnv } from "dotenv";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";

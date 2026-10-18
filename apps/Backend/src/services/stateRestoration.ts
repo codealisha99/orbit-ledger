@@ -7,18 +7,7 @@ export async function restoreState() {
     console.log("[RESTORE] Starting state restoration from database...");
     const startTime = Date.now();
 
-    try {
-      const deleteResult = await prisma.activeOrder.deleteMany({
-        where: {
-          initialMargin: undefined,
-        },
-      });
-      if (deleteResult.count > 0) {
-        console.log(`[RESTORE] Cleaned up ${deleteResult.count} old orders missing initialMargin field`);
-      }
-    } catch (cleanupError) {
-      console.warn("[RESTORE] Could not clean up old orders, continuing anyway:", cleanupError);
-    }
+    // Restoration is read-only. Legacy data repair belongs in an audited migration.
 
     const users = await prisma.user.findMany();
 
@@ -50,6 +39,7 @@ export async function restoreState() {
         asset: order.asset as Asset,
         type: order.type as "buy" | "sell",
         margin: order.margin,
+        notionalCents: order.notionalCents,
         initialMargin: order.initialMargin,
         addedMargin: order.addedMargin,
         leverage: order.leverage as 1 | 5 | 10 | 20 | 100,
@@ -58,17 +48,19 @@ export async function restoreState() {
         takeProfit: order.takeProfit || undefined,
         stopLoss: order.stopLoss || undefined,
         openTimestamp: order.openedAt.getTime(),
-        trailingStopLoss: order.trailingStopLossEnabled ? {
-          enabled: true,
-          trailingDistance: order.trailingStopLossDistance || 0,
-          highestPrice: order.trailingStopLossHighestPrice || undefined,
-          lowestPrice: order.trailingStopLossLowestPrice || undefined,
-        } : undefined,
+        trailingStopLoss: order.trailingStopLossEnabled
+          ? {
+              enabled: true,
+              trailingDistance: order.trailingStopLossDistance || 0,
+              highestPrice: order.trailingStopLossHighestPrice || undefined,
+              lowestPrice: order.trailingStopLossLowestPrice || undefined,
+            }
+          : undefined,
       });
     });
 
     console.log(
-      `[RESTORE]  State restored: ${users.length} users, ${activeOrders.length} active orders in ${Date.now() - startTime}ms`
+      `[RESTORE]  State restored: ${users.length} users, ${activeOrders.length} active orders in ${Date.now() - startTime}ms`,
     );
   } catch (error) {
     console.error("[RESTORE]  Error restoring state:", error);

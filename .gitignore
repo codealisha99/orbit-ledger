@@ -117,3 +117,8 @@ tmp/
 temp/
 .tmp/
 .cache/
+
+# Durable local ingestion spool (mount a volume in production)
+.data/
+*.sqlite-wal
+*.sqlite-shm

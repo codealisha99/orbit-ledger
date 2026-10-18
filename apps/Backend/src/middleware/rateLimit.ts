@@ -1,3 +1,4 @@
+import { verifyToken } from "../utils/jwt";
 import { createClient } from "redis";
 import { ipKeyGenerator, rateLimit } from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
@@ -15,9 +16,12 @@ redisClient?.on("error", (error) => {
 async function ensureRateLimitRedisConnected(): Promise<void> {
   if (!redisClient || redisClient.isReady) return;
   if (!redisConnectPromise) {
-    redisConnectPromise = redisClient.connect().then(() => undefined).finally(() => {
-      redisConnectPromise = null;
-    });
+    redisConnectPromise = redisClient
+      .connect()
+      .then(() => undefined)
+      .finally(() => {
+        redisConnectPromise = null;
+      });
   }
   await redisConnectPromise;
 }
@@ -25,9 +29,13 @@ async function ensureRateLimitRedisConnected(): Promise<void> {
 export async function connectRateLimitStore(): Promise<void> {
   if (!redisClient) {
     if (process.env.NODE_ENV === "production") {
-      throw new Error("RATE_LIMIT_REDIS_URL or REDIS_URL is required in production");
+      throw new Error(
+        "RATE_LIMIT_REDIS_URL or REDIS_URL is required in production",
+      );
     }
-    console.warn("[RATE_LIMIT] Redis is not configured; using per-process memory limits locally.");
+    console.warn(
+      "[RATE_LIMIT] Redis is not configured; using per-process memory limits locally.",
+    );
     return;
   }
 
@@ -42,7 +50,9 @@ export async function closeRateLimitStore(): Promise<void> {
 
 function clientKey(req: Request): string {
   const ipKey = ipKeyGenerator(req.ip || req.socket.remoteAddress || "unknown");
-  return req.userId ? `${ipKey}:user:${req.userId}` : ipKey;
+  const token = req.headers.authorization?.split(" ")[1];
+  const userId = req.userId ?? (token ? verifyToken(token)?.userId : undefined);
+  return userId ? `user:${userId}` : ipKey;
 }
 
 function limiter(prefix: string, windowMs: number, max: number, error: string) {
@@ -85,7 +95,7 @@ export const oauthRateLimit = limiter(
 export const globalRateLimit = limiter(
   "global",
   60 * 1000,
-  300,
+  900,
   "Too many requests from this client. Please try again later.",
 );
 
@@ -106,8 +116,8 @@ export const tradeCloseRateLimit = limiter(
 export const apiRateLimit = limiter(
   "api",
   60 * 1000,
-  100,
-  "Too many requests. Maximum 100 requests per minute allowed.",
+  600,
+  "Too many requests. Maximum 600 requests per minute allowed.",
 );
 
 export const chartDataRateLimit = limiter(

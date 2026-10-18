@@ -1,7 +1,7 @@
 import { createClient } from "redis";
 import type { redisPriceData, IncomingredisPriceData } from "../types";
 import { PriceDataSchema, STALE_PRICE_THRESHOLD_MS } from "../types";
-import { SUPPORTED_ASSETS, Asset } from "@orbitledger/shared";
+import { isFreshQuote, SUPPORTED_ASSETS, Asset } from "@orbitledger/shared";
 const client = createClient({
   url: process.env.REDIS_URL,
 });
@@ -15,7 +15,7 @@ export async function initPriceMonitor() {
   try {
     client.removeAllListeners("error");
     client.removeAllListeners("reconnecting");
-    
+
     client.on("error", (err) => console.log("Redis Client Error", err));
     client.on("reconnecting", () => console.log("Reconnecting to Redis..."));
     if (!client.isOpen) {
@@ -25,28 +25,25 @@ export async function initPriceMonitor() {
     }
     for (const asset of SUPPORTED_ASSETS) {
       client.subscribe(asset, (mssg) => {
-        try {
-          const message = JSON.parse(mssg);
-          const parsedata: redisPriceData = {
-            bid: message.bidPrice, // Sell price in PRICE_SCALE
-            ask: message.askPrice, // Buy price in PRICE_SCALE
-            decimals: 4,
-            time: message.time,
-          };
-          PriceStorageMp.set(asset, parsedata);
-        } catch (parseErr) {
-          console.error(`[REDIS] Failed to parse message for ${asset}:`, parseErr);
-        }
+        void handlePriceUpdate(asset, mssg);
       });
     }
   } catch (err) {
     redisRetryCount++;
     if (redisRetryCount >= MAX_REDIS_RETRIES) {
-      console.error(`[REDIS] Max retries (${MAX_REDIS_RETRIES}) reached. Giving up.`);
+      console.error(
+        `[REDIS] Max retries (${MAX_REDIS_RETRIES}) reached. Giving up.`,
+      );
       return;
     }
-    const backoffDelay = Math.min(1000 * Math.pow(2, redisRetryCount - 1), 30000);
-    console.error(`[REDIS] Error connecting (attempt ${redisRetryCount}/${MAX_REDIS_RETRIES}), retrying in ${backoffDelay/1000}s...`, err);
+    const backoffDelay = Math.min(
+      1000 * Math.pow(2, redisRetryCount - 1),
+      30000,
+    );
+    console.error(
+      `[REDIS] Error connecting (attempt ${redisRetryCount}/${MAX_REDIS_RETRIES}), retrying in ${backoffDelay / 1000}s...`,
+      err,
+    );
     setTimeout(() => {
       initPriceMonitor();
     }, backoffDelay);
@@ -67,8 +64,10 @@ export async function handlePriceUpdate(asset: Asset, message: string) {
       decimals: 4,
       time: messages.time,
     };
+    if (!isFreshQuote(PriceData)) return;
+    const previous = PriceStorageMp.get(asset);
+    if (previous?.time && previous.time > PriceData.time) return;
     PriceStorageMp.set(asset, PriceData);
-    console.log("Successfully handled the price update");
   } catch (err) {
     console.error("Error In Updating the Price", err);
   }
@@ -76,15 +75,7 @@ export async function handlePriceUpdate(asset: Asset, message: string) {
 
 export async function getCurrentPrice(asset: Asset) {
   const currentPrice = PriceStorageMp.get(asset);
-  if (!currentPrice || !currentPrice.time) {
-    console.log(" NO  Data for this Asset or Time is missing");
-    return null;
-  }
-  const priceAge = Date.now() - currentPrice.time;
-  if (priceAge >= STALE_PRICE_THRESHOLD_MS) {
-    console.log(`The price of the Asset is old (${(priceAge/1000).toFixed(1)}s old, threshold: ${STALE_PRICE_THRESHOLD_MS/1000}s)`);
-    return null;
-  }
+  if (!isFreshQuote(currentPrice)) return null;
   const returnPrice: IncomingredisPriceData = {
     bidPrice: currentPrice.bid, // Sell price in PRICE_SCALE
     askPrice: currentPrice.ask, // Buy price in PRICE_SCALE
@@ -100,13 +91,11 @@ export async function stopPriceMonitor() {
     }
     console.log("Unsubscribed from all price channels");
 
-    
     if (client.isOpen) {
       await client.quit();
       console.log("Redis connection closed successfully");
     }
 
-    
     PriceStorageMp.clear();
     console.log("Price storage cleared");
   } catch (err) {

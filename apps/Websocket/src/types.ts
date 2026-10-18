@@ -13,6 +13,10 @@ export type ClientMessage =
   | { type: "AUTH"; token: string };
 
 export interface PriceUpdate {
+  tradeId?: number;
+  price?: number;
+  quantity?: string;
+  source?: string;
   symbol: Asset;
   bidPrice: number;
   askPrice: number;
@@ -39,6 +43,17 @@ export interface OrderUpdate {
 }
 
 export type ServerMessage =
+  | {
+      type: "ACCOUNT_EVENT";
+      data: {
+        id: string;
+        version: number;
+        kind: string;
+        positionId: string | null;
+        createdAt: string;
+        payload: unknown;
+      };
+    }
   | { type: "PRICE_UPDATE"; data: PriceUpdate }
   | { type: "ORDER_OPENED"; data: OrderUpdate }
   | { type: "ORDER_CLOSED"; data: OrderUpdate }
@@ -54,5 +69,6 @@ export interface ClientInfo {
   id: string;
   userId?: string; // Set after successful authentication
   subscriptions: Set<Asset>; // Which symbols they're tracking
+  authenticatedUntil?: number;
   connectedAt: Date;
 }

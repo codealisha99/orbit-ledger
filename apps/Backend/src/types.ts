@@ -12,6 +12,7 @@ export interface User {
 }
 
 export interface JWTPayload {
+  purpose?: string;
   userId: string;
 }
 
@@ -40,7 +41,14 @@ export const PriceDataSchema = z.object({
   time: z.number(),
 });
 
-export type TimeDurationCandel = "1m" | "5m" | "15m" | "1h" | "4h" | "1d" | "1w";
+export type TimeDurationCandel =
+  | "1m"
+  | "5m"
+  | "15m"
+  | "1h"
+  | "4h"
+  | "1d"
+  | "1w";
 export type OrderType = "buy" | "sell";
 export type OrderStatus = "OPEN" | "CLOSED" | "LIQUIDATED";
 export type reasonForClose =
@@ -55,6 +63,7 @@ export interface Order {
   asset: Asset; // BTC, ETH, or SOL
   type: OrderType; // buy or sell
   margin: number; // Current collateral in cents (can increase with addMargin)
+  notionalCents?: number;
   initialMargin: number; // Original margin when position was opened
   addedMargin: number; // Additional margin added (default: 0)
   leverage: Leverage; // Original leverage (1, 5, 10, 20, or 100)
@@ -134,15 +143,23 @@ export const openTradeSchema = z.object({
   margin: z
     .number()
     .positive("Margin must be positive")
-    .min(10, "Minimum margin is $10"),
-  takeProfit: z.number().optional(),
-  stopLoss: z.number().optional(),
-  trailingStopLoss: z.object({
-    enabled: z.boolean(),
-    trailingDistance: z.number()
-      .positive("Trailing distance must be positive")
-      .min(0.01, "Minimum trailing distance is $0.01"),
-  }).optional(),
+    .min(10, "Minimum margin is $10")
+    .max(1000000, "Maximum margin is $1,000,000")
+    .refine(
+      (v) => Math.abs(v * 100 - Math.round(v * 100)) < 1e-6,
+      "Use at most two decimal places for collateral",
+    ),
+  takeProfit: z.number().positive().max(1e10).optional(),
+  stopLoss: z.number().positive().max(1e10).optional(),
+  trailingStopLoss: z
+    .object({
+      enabled: z.boolean(),
+      trailingDistance: z
+        .number()
+        .positive("Trailing distance must be positive")
+        .min(0.01, "Minimum trailing distance is $0.01"),
+    })
+    .optional(),
 });
 
 export const closeTradeSchema = z.object({
@@ -154,7 +171,11 @@ export const partialCloseSchema = z.object({
   percentage: z
     .number()
     .min(1, "Minimum percentage is 1%")
-    .max(99, "Maximum percentage is 99%"),
+    .max(99, "Maximum percentage is 99%")
+    .refine(
+      (v) => Math.abs(v * 100 - Math.round(v * 100)) < 1e-6,
+      "Use at most two decimal places for a partial close",
+    ),
 });
 
 export const addMarginSchema = z.object({
@@ -162,7 +183,12 @@ export const addMarginSchema = z.object({
   additionalMargin: z
     .number()
     .positive("Additional margin must be positive")
-    .min(10, "Minimum additional margin is $10"),
+    .min(10, "Minimum additional margin is $10")
+    .max(1000000)
+    .refine(
+      (v) => Math.abs(v * 100 - Math.round(v * 100)) < 1e-6,
+      "Use at most two decimal places for collateral",
+    ),
 });
 
 export interface Candle {
@@ -175,9 +201,9 @@ export interface Candle {
 }
 export type ValidSymbol = "BTC" | "ETH" | "SOL";
 
-export interface CloseDecsion{
-  reason:reasonForClose,
-  price:number
+export interface CloseDecsion {
+  reason: reasonForClose;
+  price: number;
 }
 export const STALE_PRICE_THRESHOLD_MS = 30000; // 30 seconds
 

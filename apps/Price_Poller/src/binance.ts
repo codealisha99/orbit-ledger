@@ -29,7 +29,8 @@ function scheduleReconnect() {
 export function startBinance() {
   if (isShuttingDown) return;
   try {
-    const endpoint = process.env.BINANCE_WS_URL || "wss://data-stream.binance.vision:443/ws";
+    const endpoint =
+      process.env.BINANCE_WS_URL || "wss://data-stream.binance.vision:443/ws";
     wss = new WebSocket(endpoint);
     wss.on("open", () => {
       reconnectAttempt = 0;
@@ -73,22 +74,10 @@ export function startBinance() {
   }
 }
 
-async function gracefulShutdown(signal: string) {
+export function stopBinance() {
   isShuttingDown = true;
-  console.log(`${signal} received: Shutting down Binance WebSocket...`);
-
-  if (reconnectTimeout) {
-    clearTimeout(reconnectTimeout);
-    reconnectTimeout = null;
-  }
-
-  if (wss) {
-    wss.close();
-    wss = null;
-  }
-
-  console.log("Binance WebSocket stopped");
+  if (reconnectTimeout) clearTimeout(reconnectTimeout);
+  reconnectTimeout = null;
+  wss?.close();
+  wss = null;
 }
-
-process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
-process.on("SIGINT", () => gracefulShutdown("SIGINT"));

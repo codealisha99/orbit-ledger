@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { Toaster } from "react-hot-toast";
-import ThemeToggle from "@/components/ThemeToggle";
+
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "OrbitLedger — Precision Trading. Real-Time Edge.",
+  title: "OrbitLedger — Crypto paper trading",
   description:
-    "OrbitLedger is a professional CFD trading platform with leverage, TP/SL, trailing stop-loss, and real-time price feeds.",
+    "Practice crypto trading with virtual funds, clear costs, and a complete trade history.",
 };
 
 export default function RootLayout({
@@ -15,7 +15,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="font-mono">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
@@ -24,7 +24,7 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
         <link
-          href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;450;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
           rel="stylesheet"
         />
       </head>
@@ -34,7 +34,6 @@ export default function RootLayout({
             __html: `try { var theme = localStorage.getItem('orbitledger-theme'); document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark'; } catch (_) { document.documentElement.dataset.theme = 'dark'; }`,
           }}
         />
-        <ThemeToggle />
         <Toaster
           position="top-right"
           toastOptions={{
