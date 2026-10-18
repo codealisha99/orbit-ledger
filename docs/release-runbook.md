@@ -35,6 +35,8 @@ Legacy executions have unknown fees; the UI does not claim complete net results 
 - **Poller:** use `apps/Price_Poller/railway.json`, `DATABASE_URL`, `REDIS_URL`, platform `PORT`, and `INGEST_SPOOL_PATH` on a **persistent volume**. Default local path is `.data/market-spool.sqlite`. Unacknowledged writes survive restart; do not delete or share a spool across processes. At its 250,000-print capacity ingestion halts and reports failure; restore downstream capacity, drain/restart, and backfill the source gap. `/ready` exposes ingest freshness/backlog/failure independently from liveness.
 - **Optional Kafka:** set `KAFKA_BROKERS`. The producer persists locally before broker publication and waits for all replicas; the consumer commits offsets after database writes. Retain the existing deployed consumer group deliberately when migrating (the new group is `orbitledger-durable-writer` and replays retained data with database deduplication). Configure broker retention, replication, and storage separately.
 
+This project currently uses manual Railway uploads: a Git push updates Vercel but does not deploy the Railway API/workers. Complete the compatible service update before the frontend. Verify API contract/readiness and proxy routes with `bun scripts/verify-release.ts <site-origin> <api-origin> <websocket-http-origin>`. See the [18 October deployment correction](deployment-incident-20261018.md).
+
 The root Railway config belongs to the API. Configure the other services' config paths explicitly in Railway. Never assume a repository file overrode dashboard settings. Record each service's deployed Git SHA and effective build, predeploy, start commands, and health checks.
 
 ## Historical coverage and snapshots
