@@ -9,14 +9,15 @@
     "start": "bun src/index.ts"
   },
   "dependencies": {
+    "@orbitledger/database": "workspace:*",
+    "@orbitledger/shared": "workspace:*",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
-    "@orbitledger/database": "workspace:*",
     "express": "^5.1.0",
     "express-rate-limit": "^8.2.1",
     "jsonwebtoken": "^9.0.2",
+    "rate-limit-redis": "^6.0.1",
     "redis": "^5.9.0",
-    "@orbitledger/shared": "workspace:*",
     "uuid": "^11.1.0",
     "zod": "^4.1.12"
   },

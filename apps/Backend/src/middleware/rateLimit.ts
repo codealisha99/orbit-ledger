@@ -1,88 +1,109 @@
-import rateLimit from "express-rate-limit";
+import { createClient } from "redis";
+import { ipKeyGenerator, rateLimit } from "express-rate-limit";
+import { RedisStore } from "rate-limit-redis";
+import type { Request } from "express";
 
-export const authRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 requests per window
-  message: {
-    error: "Too many authentication attempts. Please try again in 15 minutes.",
-  },
-  standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
-  legacyHeaders: false, // Disable `X-RateLimit-*` headers
-  skipSuccessfulRequests: false,
-  skipFailedRequests: false,
+const redisUrl = process.env.RATE_LIMIT_REDIS_URL || process.env.REDIS_URL;
+const redisClient = redisUrl ? createClient({ url: redisUrl }) : null;
+
+redisClient?.on("error", (error) => {
+  console.error("[RATE_LIMIT] Redis connection error:", error.message);
 });
 
-export const oauthRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // 10 requests per window
-  message: {
-    error: "Too many OAuth attempts. Please try again in 15 minutes.",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+/** Connect before listening so all production instances share rate limit counters. */
+export async function connectRateLimitStore(): Promise<void> {
+  if (!redisClient) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("RATE_LIMIT_REDIS_URL or REDIS_URL is required in production");
+    }
+    console.warn("[RATE_LIMIT] Redis is not configured; using per-process memory limits locally.");
+    return;
+  }
 
-export const globalRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 500, // 500 requests per window
-  message: {
-    error: "Too many requests from this IP. Please try again later.",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+  if (!redisClient.isOpen) await redisClient.connect();
+  await redisClient.ping();
+  console.log("[RATE_LIMIT] Shared Redis store connected");
+}
 
-export const tradeOpenRateLimit = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 30, // 30 trades per minute
-  message: {
-    error: "Too many trade requests. Maximum 30 trades per minute allowed.",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => {
-    return req.userId || undefined;
-  },
-  skip: (req) => {
-    return false;
-  },
-});
+export async function closeRateLimitStore(): Promise<void> {
+  if (redisClient?.isOpen) await redisClient.quit();
+}
 
-export const tradeCloseRateLimit = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 60, // 60 closes per minute
-  message: {
-    error: "Too many close requests. Maximum 60 closes per minute allowed.",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => {
-    return req.userId || undefined;
-  },
-});
+function clientKey(req: Request): string {
+  const ipKey = ipKeyGenerator(req.ip || req.socket.remoteAddress || "unknown");
+  return req.userId ? `${ipKey}:user:${req.userId}` : ipKey;
+}
 
-export const apiRateLimit = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 100, // 100 requests per minute
-  message: {
-    error: "Too many requests. Maximum 100 requests per minute allowed.",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => {
-    return req.userId || undefined;
-  },
-});
+function limiter(prefix: string, windowMs: number, max: number, error: string) {
+  return rateLimit({
+    windowMs,
+    limit: max,
+    message: { error },
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    keyGenerator: clientKey,
+    skipSuccessfulRequests: prefix === "auth",
+    ...(redisClient
+      ? {
+          store: new RedisStore({
+            prefix: `orbitledger:ratelimit:${prefix}:`,
+            sendCommand: (...args: string[]) => {
+              if (!redisClient.isOpen) {
+                throw new Error("Rate limit Redis connection is not available");
+              }
+              return redisClient.sendCommand(args);
+            },
+          }),
+        }
+      : {}),
+  });
+}
 
-export const chartDataRateLimit = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 200, // 200 requests per minute
-  message: {
-    error: "Too many chart data requests. Please reduce refresh frequency.",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => {
-    return req.userId || undefined;
-  },
-});
+export const authRateLimit = limiter(
+  "auth",
+  15 * 60 * 1000,
+  5,
+  "Too many authentication attempts. Please try again in 15 minutes.",
+);
+
+export const oauthRateLimit = limiter(
+  "oauth",
+  15 * 60 * 1000,
+  10,
+  "Too many OAuth attempts. Please try again in 15 minutes.",
+);
+
+export const globalRateLimit = limiter(
+  "global",
+  60 * 1000,
+  300,
+  "Too many requests from this client. Please try again later.",
+);
+
+export const tradeOpenRateLimit = limiter(
+  "trade-open",
+  60 * 1000,
+  30,
+  "Too many trade requests. Maximum 30 trades per minute allowed.",
+);
+
+export const tradeCloseRateLimit = limiter(
+  "trade-close",
+  60 * 1000,
+  60,
+  "Too many close requests. Maximum 60 closes per minute allowed.",
+);
+
+export const apiRateLimit = limiter(
+  "api",
+  60 * 1000,
+  100,
+  "Too many requests. Maximum 100 requests per minute allowed.",
+);
+
+export const chartDataRateLimit = limiter(
+  "chart-data",
+  60 * 1000,
+  200,
+  "Too many chart data requests. Please reduce refresh frequency.",
+);
