@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Toaster } from "react-hot-toast";
+import ThemeToggle from "@/components/ThemeToggle";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -27,14 +28,20 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="bg-[#050f1a] text-[#e2e8f0] antialiased">
+      <body className="bg-[var(--nt-bg)] text-[var(--nt-text)] antialiased">
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try { var theme = localStorage.getItem('orbitledger-theme'); document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark'; } catch (_) { document.documentElement.dataset.theme = 'dark'; }`,
+          }}
+        />
+        <ThemeToggle />
         <Toaster
           position="top-right"
           toastOptions={{
             style: {
-              background: "#0a1929",
-              color: "#e2e8f0",
-              border: "1px solid #1e3a5f",
+              background: "var(--nt-surface)",
+              color: "var(--nt-text)",
+              border: "1px solid var(--nt-border)",
               fontFamily: "'JetBrains Mono', monospace",
             },
           }}

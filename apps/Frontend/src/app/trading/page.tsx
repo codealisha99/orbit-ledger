@@ -122,12 +122,12 @@ export default function Trading() {
 
               toast.custom(
                 (t) => (
-                  <div className={`${t.visible ? "animate-enter" : "animate-leave"} max-w-md w-full bg-[#0d2137] shadow-lg rounded-xl pointer-events-auto flex ring-1 ring-[#1e3a5f]`}>
+                  <div className={`${t.visible ? "animate-enter" : "animate-leave"} max-w-md w-full bg-[var(--nt-surface2)] shadow-lg rounded-xl pointer-events-auto flex ring-1 ring-[var(--nt-border)]`}>
                     <div className="flex-1 w-0 p-4">
                       <div className="flex items-start">
                         <div className="ml-3 flex-1">
-                          <p className="text-sm font-medium text-[#e2e8f0]">Order Closed</p>
-                          <p className="mt-1 text-sm text-[#94a3b8]">
+                          <p className="text-sm font-medium text-[var(--nt-text)]">Order Closed</p>
+                          <p className="mt-1 text-sm text-[var(--nt-muted)]">
                             {closedOrder.asset} {closedOrder.type.toUpperCase()} closed at ${closedOrder.closePrice?.toFixed(2)}
                           </p>
                           <p className={`mt-1 text-sm font-bold ${pnlColor}`}>
@@ -136,10 +136,10 @@ export default function Trading() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex border-l border-[#1e3a5f]">
+                    <div className="flex border-l border-[var(--nt-border)]">
                       <button
                         onClick={() => toast.dismiss(t.id)}
-                        className="w-full border border-transparent rounded-none rounded-r-xl p-4 flex items-center justify-center text-sm font-medium text-[#94a3b8] hover:text-[#e2e8f0] focus:outline-none"
+                        className="w-full border border-transparent rounded-none rounded-r-xl p-4 flex items-center justify-center text-sm font-medium text-[var(--nt-muted)] hover:text-[var(--nt-text)] focus:outline-none"
                       >
                         Close
                       </button>
@@ -205,15 +205,15 @@ export default function Trading() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#090909] overflow-hidden flex flex-col">
-      <div className="fixed inset-0 bg-[#090909]">
+    <div className="min-h-screen bg-[var(--nt-bg)] overflow-hidden flex flex-col">
+      <div className="fixed inset-0 bg-[var(--nt-bg)]">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-gradient-to-br from-white/5 via-white/0 to-transparent blur-3xl"></div>
         <div className="absolute top-1/3 right-1/4 w-80 h-80 bg-gradient-to-bl from-white/5 via-transparent to-transparent blur-3xl"></div>
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
       </div>
 
       <div className="relative z-10 w-full h-full flex flex-col p-4">
-        <div className="bg-[#101010]/90 backdrop-blur-xl border border-[#2a2a2a] p-3 rounded-xl mb-4 flex flex-col sm:flex-row gap-2">
+        <div className="bg-[color:color-mix(in_srgb,var(--nt-surface)_90%,transparent)] backdrop-blur-xl border border-[var(--nt-border)] p-3 rounded-xl mb-4 flex flex-col sm:flex-row gap-2">
           <div className="flex gap-2 overflow-x-auto flex-shrink-0">
             {([
               { channel: Channels.BTCUSDT, label: "BTC/USDT", base: "BTC" },
@@ -228,8 +228,8 @@ export default function Trading() {
                 key={channel}
                 className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap flex-shrink-0 ${
                   symbol === channel
-                    ? "bg-white/10 text-white border border-white/30"
-                    : "text-[#d4d4d4] hover:bg-white/5 border border-[#2c2c2c]"
+                    ? "bg-[color:color-mix(in_srgb,var(--nt-surface2)_10%,transparent)] text-[var(--nt-text)] border border-[color:color-mix(in_srgb,var(--nt-border)_30%,transparent)]"
+                    : "text-[var(--nt-text)] hover:bg-[color:color-mix(in_srgb,var(--nt-surface2)_5%,transparent)] border border-[var(--nt-border)]"
                 }`}
                 disabled={symbol === channel}
                 onClick={() => setSymbol(channel)}
@@ -246,21 +246,21 @@ export default function Trading() {
           </div>
 
           <div className="flex items-center gap-2 sm:ml-auto flex-wrap">
-            <div className="flex items-center bg-[#171717] border border-[#333] px-3 py-2 rounded-lg">
+            <div className="flex items-center bg-[var(--nt-surface2)] border border-[var(--nt-border)] px-3 py-2 rounded-lg">
               <div className="flex items-center gap-2">
-                <div className="flex items-center justify-center bg-[#0EA5E9]/20 w-7 h-7 rounded-lg">
-                  <div className="w-2.5 h-2.5 bg-[#0EA5E9] rounded-full"></div>
+                <div className="flex items-center justify-center bg-[color:color-mix(in_srgb,var(--nt-accent)_20%,transparent)] w-7 h-7 rounded-lg">
+                  <div className="w-2.5 h-2.5 bg-[var(--nt-accent)] rounded-full"></div>
                 </div>
                 <div>
-                  <div className="text-[9px] text-[#9ca3af] font-medium uppercase tracking-wider">Platform Profit</div>
-                  <div className="text-sm font-bold text-white">
+                  <div className="text-[9px] text-[var(--nt-muted)] font-medium uppercase tracking-wider">Platform Profit</div>
+                  <div className="text-sm font-bold text-[var(--nt-text)]">
                     {platformProfit ? `$${(platformProfit.totalProfit / 100).toFixed(2)}` : "$0.00"}
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-[#151515] rounded-lg p-1 flex border border-[#2f2f2f] overflow-x-auto max-w-full">
+            <div className="bg-[var(--nt-surface2)] rounded-lg p-1 flex border border-[var(--nt-border)] overflow-x-auto max-w-full">
               {([
                 { d: Duration.candles_1m,  label: "1m" },
                 { d: Duration.candles_5m,  label: "5m" },
@@ -274,8 +274,8 @@ export default function Trading() {
                   key={d}
                   className={`px-3 py-2 rounded-md text-sm font-medium transition whitespace-nowrap ${
                     duration === d
-                      ? "bg-white/15 text-white"
-                      : "text-[#9ca3af] hover:text-white"
+                      ? "bg-[color:color-mix(in_srgb,var(--nt-surface2)_15%,transparent)] text-[var(--nt-text)]"
+                      : "text-[var(--nt-muted)] hover:text-[var(--nt-text)]"
                   }`}
                   disabled={duration === d}
                   onClick={() => setDuration(d)}
@@ -287,7 +287,7 @@ export default function Trading() {
 
             <button
               onClick={() => router.push("/dashboard")}
-              className="bg-[#0EA5E9]/10 hover:bg-[#0EA5E9]/20 text-[#0EA5E9] border border-[#0EA5E9]/30 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              className="bg-[color:color-mix(in_srgb,var(--nt-accent)_10%,transparent)] hover:bg-[color:color-mix(in_srgb,var(--nt-accent)_20%,transparent)] text-[var(--nt-accent)] border border-[color:color-mix(in_srgb,var(--nt-accent)_30%,transparent)] px-4 py-2 rounded-lg text-sm font-medium transition-colors"
             >
               Dashboard
             </button>
@@ -307,10 +307,10 @@ export default function Trading() {
 
         <div className="flex-grow grid grid-cols-12 gap-3 min-h-0 h-[calc(100vh-120px)]">
           <div className="col-span-12 md:col-span-2 order-2 md:order-1 overflow-auto min-h-0 h-full">
-            <div className="bg-[#101010]/90 backdrop-blur-xl rounded-xl border border-[#2a2a2a] p-3 h-full">
-              <h3 className="text-white text-sm font-medium mb-3 flex justify-between items-center">
+            <div className="bg-[color:color-mix(in_srgb,var(--nt-surface)_90%,transparent)] backdrop-blur-xl rounded-xl border border-[var(--nt-border)] p-3 h-full">
+              <h3 className="text-[var(--nt-text)] text-sm font-medium mb-3 flex justify-between items-center">
                 <span>Market Data</span>
-                <span className="text-xs bg-white/10 text-[#d1d5db] px-2 py-1 rounded-md">Live</span>
+                <span className="text-xs bg-[color:color-mix(in_srgb,var(--nt-surface2)_10%,transparent)] text-[var(--nt-text)] px-2 py-1 rounded-md">Live</span>
               </h3>
               <AskBids symbol={symbol} />
             </div>
