@@ -118,8 +118,8 @@ userRouter.post("/signin", authRateLimit, async (req: Request, res: Response): P
 
 userRouter.get(
   "/balance",
-  apiRateLimit,
   authMiddleware,
+  apiRateLimit,
   (req: Request, res: Response): void => {
     try {
       const userId = req.userId;

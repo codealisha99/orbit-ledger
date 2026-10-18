@@ -27,8 +27,8 @@ export const tradeRoutes = Router();
 
 tradeRoutes.post(
   "/open",
-  tradeOpenRateLimit,
   authMiddleware,
+  tradeOpenRateLimit,
   async (req: Request, res: Response): Promise<void> => {
     const validation = openTradeSchema.safeParse(req.body);
 
@@ -245,8 +245,8 @@ tradeRoutes.post(
 
 tradeRoutes.post(
   "/close",
-  tradeCloseRateLimit,
   authMiddleware,
+  tradeCloseRateLimit,
   async (req: Request, res: Response): Promise<void> => {
     const { orderId } = req.body;
     if (!orderId) {
@@ -293,8 +293,8 @@ tradeRoutes.post(
 );
 tradeRoutes.get(
   "/open",
-  apiRateLimit,
   authMiddleware,
+  apiRateLimit,
   (req: Request, res: Response): void => {
     const userId = req.userId;
     if (!userId) {
@@ -334,8 +334,8 @@ tradeRoutes.get(
 );
 tradeRoutes.get(
   "/history",
-  apiRateLimit,
   authMiddleware,
+  apiRateLimit,
   async (req: Request, res: Response): Promise<void> => {
     const userId = req.userId;
     if (!userId) {
@@ -379,8 +379,8 @@ tradeRoutes.get(
 
 tradeRoutes.post(
   "/partial-close",
-  tradeCloseRateLimit,
   authMiddleware,
+  tradeCloseRateLimit,
   async (req: Request, res: Response): Promise<void> => {
     const { orderId, percentage } = req.body;
     const userId = req.userId;
@@ -531,8 +531,8 @@ tradeRoutes.post(
 
 tradeRoutes.post(
   "/add-margin",
-  apiRateLimit,
   authMiddleware,
+  apiRateLimit,
   async (req: Request, res: Response): Promise<void> => {
     const { orderId, additionalMargin } = req.body;
     const userId = req.userId;
