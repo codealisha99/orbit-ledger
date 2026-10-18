@@ -27,6 +27,8 @@
 
     // Path aliases for workspace packages
     "paths": {
+      "@orbitledger/shared": ["../../packages/shared/src/index.ts"],
+      "@orbitledger/database": ["../../packages/database/src/index.ts"],
       "shared": ["../../packages/shared/src/index.ts"],
       "database": ["../../packages/database/src/index.ts"]
     },

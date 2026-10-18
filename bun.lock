@@ -123,6 +123,7 @@
       },
       "devDependencies": {
         "@types/bun": "latest",
+        "@types/pg": "8.20.0",
       },
       "peerDependencies": {
         "typescript": "^5.9.3",
