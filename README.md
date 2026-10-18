@@ -26,7 +26,7 @@ Do not commit `.env` files, provider tokens, or database connection strings. `.e
 
 ## Architecture
 
-The system consists of four independent services communicating through Redis pub/sub and Kafka streams. Price data flows from Binance WebSocket through an EventEmitter fan-out pattern to both real-time distribution (Redis) and historical persistence (Kafka → PostgreSQL). The Backend maintains in-memory order state with periodic snapshots to PostgreSQL for crash recovery, while the WebSocket service handles authenticated client connections with dual Redis subscriptions for prices and user-specific order events.
+The system consists of four independent services communicating through Redis pub/sub and Kafka streams. Live prices flow from Binance WebSocket through Redis, while daily and weekly OHLCV history is backfilled from Binance into PostgreSQL for long-range charts. The Backend maintains in-memory order state with periodic snapshots to PostgreSQL for crash recovery, while the WebSocket service handles authenticated client connections with dual Redis subscriptions for prices and user-specific order events.
 
 ```mermaid
 graph TB
@@ -123,7 +123,7 @@ graph TB
 ### 📦 Shared Packages
 
 **`packages/database`**
-- Prisma schema with 7 models: Trade, User, ActiveOrder, ClosedOrder, UserSnapshot, OrderSnapshot, PlatformProfit
+- Prisma schema with live trades, historical market candles, and user/trading state models
 - PostgreSQL with TimescaleDB for time-series optimization
 - Auto-generated Prisma client in `generated/prisma/`
 
@@ -161,7 +161,7 @@ bun run prisma migrate dev
 bun run seed-data
 ```
 
-The seeding process fetches 7 days of historical price data from Binance and takes approximately 5-10 minutes.
+The idempotent seed command stores Binance daily and weekly candles from 2019 onward in `market_candles`. BTC and ETH history begins in 2019; SOL history begins when Binance listed SOLUSDT. Railway runs the migration and backfill in its pre-deploy step. The Backend refreshes the active daily and weekly candles every five minutes.
 
 ## Run
 
@@ -216,7 +216,7 @@ GET  /api/v2/trade/history            # Closed trades with PnL
 ### Market Data
 ```bash
 GET /api/v2/asset/                    # List assets with current prices
-GET /api/v2/asset/candles             # Candlestick data (TimescaleDB)
+GET /api/v2/asset/candles             # Historical daily/weekly and live intraday candles
 ```
 
 All trading endpoints require JWT authentication via `Authorization: Bearer <token>` header. Rate limiting is enforced globally and per-endpoint.
