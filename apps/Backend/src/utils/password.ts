@@ -1,18 +1,12 @@
 import bcrypt from "bcrypt";
-
-const SALT_ROUNDS = 10;
-
-export function hashPassword(password: string): string {
-  const hashedPassword = bcrypt.hashSync(password, SALT_ROUNDS);
-  console.log(`[PASSWORD] Hashed password with ${SALT_ROUNDS} salt rounds`);
-  return hashedPassword;
+// Equal-cost invalid-user checks avoid exposing account existence through timing.
+const dummyHash = bcrypt.hashSync("orbitledger-invalid-user-comparison", 12);
+export function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 12);
 }
-
 export function comparePassword(
-  plainPassword: string,
-  hashedPassword: string,
-): boolean {
-  const isMatch = bcrypt.compareSync(plainPassword, hashedPassword);
-  console.log(`[PASSWORD] Password comparison result: ${isMatch}`);
-  return isMatch;
+  password: string,
+  hash: string,
+): Promise<boolean> {
+  return bcrypt.compare(password, hash || dummyHash);
 }

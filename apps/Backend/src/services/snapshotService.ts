@@ -35,6 +35,9 @@ async function saveSnapshots() {
         where: { snapshotAt: { lt: legacyCutoff } },
       });
     }
+    await prisma.authSession.deleteMany({
+      where: { expiresAt: { lt: new Date() } },
+    });
     await prisma.loginCode.deleteMany({
       where: { expiresAt: { lt: new Date() } },
     });

@@ -1,4 +1,5 @@
 import "../../../packages/database/src/env";
+import { securitySecret } from "@orbitledger/shared/security";
 import { DomainError } from "./services/accountService";
 import { ZodError } from "zod";
 import { prisma } from "@orbitledger/database";
@@ -46,12 +47,22 @@ const port = Number(process.env.PORT) || 5000;
 // Railway terminates TLS at one trusted proxy hop; use the forwarded client IP
 // for rate limiting instead of grouping every request under the proxy address.
 app.set("trust proxy", 1);
+app.disable("x-powered-by");
+app.use((_req, res, next) => {
+  res.set({
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer",
+    "Cache-Control": "no-store",
+  });
+  next();
+});
 
 app.get("/health", (_req, res) => {
   res.status(200).json({
     status: "ok",
     apiContract: 2,
-    capabilities: { workspace: true },
+    capabilities: { workspace: true, revocableSessions: true },
     revision:
       process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.APP_REVISION ?? "local",
   });
@@ -148,6 +159,7 @@ app.use((error: Error, _req: Request, res: Response, _next: NextFunction) => {
 
 async function main() {
   try {
+    securitySecret();
     await connectRateLimitStore();
     logOAuthStatus();
 

@@ -80,8 +80,10 @@ export default function AuthForm({ signup = false }: { signup?: boolean }) {
                 id="password"
                 type="password"
                 autoComplete={signup ? "new-password" : "current-password"}
-                minLength={6}
+                minLength={signup ? 12 : 1}
+                maxLength={signup ? 72 : 1024}
                 required
+                placeholder={signup ? "At least 12 characters" : undefined}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 aria-describedby="auth-error"

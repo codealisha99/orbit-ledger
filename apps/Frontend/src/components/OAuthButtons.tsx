@@ -28,7 +28,7 @@ export default function OAuthButtons({
             onClick={() => {
               setLoading(true);
               sessionStorage.setItem("orbit-auth-next", signInDestination());
-              location.href = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v2"}/auth/${provider}`;
+              location.href = `/api/oauth/${provider}`;
             }}
           >
             {provider === "google" ? "Google" : "GitHub"}

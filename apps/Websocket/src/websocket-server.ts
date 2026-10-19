@@ -4,6 +4,8 @@ import { createClient, RedisClientType } from "redis";
 import { SUPPORTED_ASSETS, type Asset } from "@orbitledger/shared";
 import { SubscriptionManager } from "./subscription-manager";
 import type { ClientMessage, ServerMessage, PriceUpdate } from "./types";
+import { prisma } from "@orbitledger/database";
+import { securitySecret } from "@orbitledger/shared/security";
 import { Verifytokenws } from "./utils/wsjwt";
 
 let orderRedis: RedisClientType = createClient({
@@ -14,8 +16,16 @@ const redis = createClient({
 });
 
 const WS_PORT = Number(process.env.WEBSOCKET_PORT || process.env.PORT) || 8080;
-const server = createServer((req, res) => {
-  const ready = redis.isReady && orderRedis.isReady;
+const server = createServer(async (req, res) => {
+  let database = false;
+  if (req.url === "/ready") {
+    try {
+      await prisma.$queryRaw`SELECT 1 FROM auth_sessions LIMIT 1`;
+      database = true;
+    } catch {}
+  }
+  const ready =
+    redis.isReady && orderRedis.isReady && (req.url !== "/ready" || database);
   res.writeHead(req.url === "/ready" && !ready ? 503 : 200, {
     "Content-Type": "application/json",
   });
@@ -23,6 +33,7 @@ const server = createServer((req, res) => {
     JSON.stringify({
       status: "ok",
       ready,
+      ...(req.url === "/ready" ? { database } : {}),
       revision:
         process.env.RAILWAY_GIT_COMMIT_SHA ??
         process.env.APP_REVISION ??
@@ -30,7 +41,22 @@ const server = createServer((req, res) => {
     }),
   );
 });
-const wss = new WebSocketServer({ server, maxPayload: 4096 });
+securitySecret();
+const allowedOrigins = new Set(
+  (
+    process.env.CORS_ORIGINS ||
+    process.env.FRONTEND_URL ||
+    "http://localhost:3000,https://orbit-ledger-web.vercel.app"
+  )
+    .split(",")
+    .map((value) => value.trim()),
+);
+const wss = new WebSocketServer({
+  server,
+  maxPayload: 4096,
+  verifyClient: ({ origin }: { origin: string }) =>
+    !origin || allowedOrigins.has(origin),
+});
 server.listen(WS_PORT);
 const SubsManager = new SubscriptionManager();
 let isShuttingDown = false;
@@ -54,7 +80,7 @@ async function connectRedis() {
       console.log(`Subscribed to ${asset}`);
     }
     await orderRedis.pSubscribe("orders:*", (message, channel) => {
-      handleOrderUpdate(channel, message);
+      void handleOrderUpdate(channel, message);
     });
     console.log("Subscribed to pattern: orders:*");
   } catch (err) {
@@ -68,10 +94,40 @@ async function connectRedis() {
 async function WS() {
   try {
     wss.on("connection", function connection(ws) {
+      if (wss.clients.size > 2000) {
+        ws.close(1013, "Server capacity reached");
+        return;
+      }
       SubsManager.addClient(ws);
+      let alive = true;
+      ws.on("pong", () => {
+        alive = true;
+      });
+      const heartbeat = setInterval(() => {
+        if (!alive) {
+          ws.terminate();
+          return;
+        }
+        alive = false;
+        ws.ping();
+      }, 30000);
+      ws.once("close", () => clearInterval(heartbeat));
       console.log("Client connected");
+      let windowStart = Date.now(),
+        count = 0;
+      let pending = Promise.resolve();
       ws.on("message", (mmsgg) => {
-        handleClientMessage(ws, mmsgg);
+        if (Date.now() - windowStart >= 10000) {
+          windowStart = Date.now();
+          count = 0;
+        }
+        if (++count > 50) {
+          ws.close(1008, "Message rate exceeded");
+          return;
+        }
+        pending = pending
+          .then(() => handleClientMessage(ws, mmsgg))
+          .catch(() => ws.close(1011, "Authentication unavailable"));
       });
       ws.on("close", () => {
         SubsManager.removeClient(ws);
@@ -111,9 +167,18 @@ function handlePriceUpdate(asset: Asset, mssg: string) {
   }
 }
 
-function handleClientMessage(ws: WebSocket, mssg: RawData) {
+async function handleClientMessage(ws: WebSocket, mssg: RawData) {
   try {
     let message = JSON.parse(mssg.toString());
+    if (!message || typeof message !== "object" || Array.isArray(message))
+      return;
+    if (
+      ["SUBSCRIBE", "UNSUBSCRIBE"].includes(message.type) &&
+      !SUPPORTED_ASSETS.includes(message.symbol)
+    ) {
+      ws.send(JSON.stringify({ type: "ERROR", message: "Unsupported market" }));
+      return;
+    }
     if (message.type === "SUBSCRIBE") {
       SubsManager.subscribeClient(ws, message.symbol);
       let response: ServerMessage = {
@@ -131,6 +196,12 @@ function handleClientMessage(ws: WebSocket, mssg: RawData) {
     } else if (message.type === "PING") {
       ws.send(JSON.stringify({ type: "PONG" }));
     } else if (message.type === "AUTH") {
+      const previous = SubsManager.clients.get(ws);
+      if (previous) {
+        delete previous.userId;
+        delete previous.sessionId;
+        delete previous.authenticatedUntil;
+      }
       if (!message.token) {
         console.log("Authentication failed: No token provided");
         let response: ServerMessage = {
@@ -141,7 +212,7 @@ function handleClientMessage(ws: WebSocket, mssg: RawData) {
         return;
       }
 
-      const verify = Verifytokenws(message.token);
+      const verify = await Verifytokenws(message.token);
       if (!verify || verify == null) {
         console.log("Authentication failed: Token verification returned null");
         let response: ServerMessage = {
@@ -155,7 +226,10 @@ function handleClientMessage(ws: WebSocket, mssg: RawData) {
 
       SubsManager.setUserId(ws, userid);
       const info = SubsManager.clients.get(ws);
-      if (info) info.authenticatedUntil = Date.now() + 60000;
+      if (info) {
+        info.authenticatedUntil = verify.authenticatedUntil;
+        info.sessionId = verify.sessionId;
+      }
       console.log(`User ${userid} authenticated successfully via WebSocket`);
       ws.send(JSON.stringify({ type: "AUTHENTICATED", userId: userid }));
     } else {
@@ -168,9 +242,8 @@ function handleClientMessage(ws: WebSocket, mssg: RawData) {
   }
 }
 
-function handleOrderUpdate(channel: string, message: string) {
+async function handleOrderUpdate(channel: string, message: string) {
   try {
-    console.log(`Received order update on ${channel}:`, message);
     const userId = channel.split(":")[1];
     if (!userId) {
       console.error("Invalid channel format:", channel);
@@ -197,8 +270,30 @@ function handleOrderUpdate(channel: string, message: string) {
       console.log(`No active connections for user ${userId}`);
       return;
     }
+    const sessions = await prisma.authSession.findMany({
+      where: {
+        userId,
+        expiresAt: { gt: new Date() },
+        id: {
+          in: userConnections.map(
+            (ws) => SubsManager.clients.get(ws)?.sessionId ?? "",
+          ),
+        },
+      },
+      select: { id: true },
+    });
+    const activeSessions = new Set(sessions.map((session) => session.id));
     userConnections.forEach((ws) => {
-      if (ws.readyState === WebSocket.OPEN) {
+      const info = SubsManager.clients.get(ws);
+      if (ws.bufferedAmount > 1024 * 1024) {
+        ws.close(1008, "Slow consumer");
+        return;
+      }
+      if (
+        ws.readyState === WebSocket.OPEN &&
+        activeSessions.has(info?.sessionId ?? "") &&
+        (info?.authenticatedUntil ?? 0) > Date.now()
+      ) {
         ws.send(JSON.stringify(serverMessage));
       }
     });

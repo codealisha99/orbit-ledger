@@ -23,7 +23,10 @@ test("compatible health checks are deduplicated and cached across requests", asy
   const upstream = new ApiUpstream("https://api.example.test/", (async () => {
     checks++;
     await Promise.resolve();
-    return Response.json({ apiContract: 2 });
+    return Response.json({
+      apiContract: 2,
+      capabilities: { revocableSessions: true },
+    });
   }) as typeof fetch);
   await Promise.all([upstream.assertCompatible(), upstream.assertCompatible()]);
   await upstream.assertCompatible();

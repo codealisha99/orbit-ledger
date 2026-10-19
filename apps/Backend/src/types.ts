@@ -27,13 +27,19 @@ export interface SigninRequest {
 }
 
 export const signupSchema = z.object({
-  email: z.email("Invalid email format"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  email: z.email("Invalid email format").max(254),
+  password: z
+    .string()
+    .min(12, "Use at least 12 characters")
+    .refine(
+      (v) => Buffer.byteLength(v, "utf8") <= 72,
+      "Use at most 72 UTF-8 bytes",
+    ),
 });
 
 export const signinSchema = z.object({
-  email: z.email("Invalid email format"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  email: z.email("Invalid email format").max(254),
+  password: z.string().min(1).max(1024),
 });
 export const PriceDataSchema = z.object({
   bidPrice: z.number(), // Sell price in PRICE_SCALE
@@ -42,21 +48,11 @@ export const PriceDataSchema = z.object({
 });
 
 export type TimeDurationCandel =
-  | "1m"
-  | "5m"
-  | "15m"
-  | "1h"
-  | "4h"
-  | "1d"
-  | "1w";
+  "1m" | "5m" | "15m" | "1h" | "4h" | "1d" | "1w";
 export type OrderType = "buy" | "sell";
 export type OrderStatus = "OPEN" | "CLOSED" | "LIQUIDATED";
 export type reasonForClose =
-  | "manual"
-  | "take_profit"
-  | "stop_loss"
-  | "liquidation"
-  | "partial_close";
+  "manual" | "take_profit" | "stop_loss" | "liquidation" | "partial_close";
 export interface Order {
   orderId: string; // UUID
   userId: string; // UUID

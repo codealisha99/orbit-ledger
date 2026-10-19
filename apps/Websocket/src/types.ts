@@ -70,5 +70,6 @@ export interface ClientInfo {
   userId?: string; // Set after successful authentication
   subscriptions: Set<Asset>; // Which symbols they're tracking
   authenticatedUntil?: number;
+  sessionId?: string;
   connectedAt: Date;
 }

@@ -11,15 +11,16 @@
     "prisma": "bun --bun packages/database/node_modules/prisma/build/index.js --config packages/database/prisma.config.ts",
     "seed-data": "bun run scripts/seed-historical-data.ts",
     "test": "bun test packages/shared/tests apps/Price_Poller/tests apps/Frontend/tests",
-    "test:integration": "bun test apps/Backend/tests"
+    "test:integration": "bun test apps/Backend/tests",
+    "security:audit": "bun scripts/security-audit.ts"
   },
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^22.10.2",
-    "@types/ws": "^8.18.1",
+    "@types/node": "^22.20.5",
+    "@types/ws": "^8.18.2",
     "bun-types": "latest",
-    "prettier": "^3.6.2",
-    "prisma": "^7.6.0",
+    "prettier": "^3.9.10",
+    "prisma": "^7.10.1",
     "turbo": "^2.11.9",
     "typescript": "5.9.2"
   },
@@ -32,10 +33,24 @@
     "packages/*"
   ],
   "dependencies": {
-    "@prisma/client": "^7.6.0",
-    "@prisma/client-runtime-utils": "^7.6.0",
-    "jsonwebtoken": "^9.0.2",
-    "redis": "^5.9.0",
+    "@prisma/client": "^7.10.1",
+    "@prisma/client-runtime-utils": "^7.10.1",
+    "jsonwebtoken": "^9.0.3",
+    "redis": "^5.12.1",
     "ws": "^8.22.0"
+  },
+  "overrides": {
+    "postcss": "8.5.31",
+    "nanoid": "3.3.20",
+    "source-map-js": "1.2.2",
+    "fast-uri": "3.1.8",
+    "ip-address": "10.7.4",
+    "browserslist": "4.29.3",
+    "baseline-browser-mapping": "2.11.29",
+    "js-yaml": "4.3.2",
+    "postcss-selector-parser": "7.1.6"
+  },
+  "patchedDependencies": {
+    "braces@3.0.3": "patches/braces@3.0.3.patch"
   }
 }

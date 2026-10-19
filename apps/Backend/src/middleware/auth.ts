@@ -1,22 +1,24 @@
 import type { Request, Response, NextFunction } from "express";
+import { prisma } from "@orbitledger/database";
 import { verifyToken } from "../utils/jwt";
-
 declare global {
   namespace Express {
     interface Request {
       userId?: string;
+      sessionId?: string;
+      sessionExpiresAt?: Date;
     }
   }
 }
-
-export function authMiddleware(
+export async function authMiddleware(
   req: Request,
   res: Response,
   next: NextFunction,
-): void {
-  const header = req.headers.authorization;
-  const token = header?.split(" ")[1];
-  if (!token) {
+): Promise<void> {
+  const match = /^Bearer ([A-Za-z0-9._-]+)$/i.exec(
+    req.headers.authorization ?? "",
+  );
+  if (!match) {
     res
       .status(401)
       .json({
@@ -25,8 +27,8 @@ export function authMiddleware(
       });
     return;
   }
-  const newToken = verifyToken(token);
-  if (!newToken || newToken.purpose === "websocket") {
+  const claims = verifyToken(match[1]!);
+  if (!claims) {
     res
       .status(403)
       .json({
@@ -35,7 +37,29 @@ export function authMiddleware(
       });
     return;
   }
-  const userId = newToken.userId;
-  req.userId = newToken.userId;
-  next();
+  try {
+    const session = await prisma.authSession.findFirst({
+      where: {
+        id: claims.jti,
+        userId: claims.userId,
+        expiresAt: { gt: new Date() },
+      },
+      select: { id: true, expiresAt: true },
+    });
+    if (!session) {
+      res
+        .status(403)
+        .json({
+          error: "Your session has expired. Sign in again.",
+          code: "SESSION_EXPIRED",
+        });
+      return;
+    }
+    req.userId = claims.userId;
+    req.sessionId = session.id;
+    req.sessionExpiresAt = session.expiresAt;
+    next();
+  } catch (error) {
+    next(error);
+  }
 }
