@@ -1,4 +1,9 @@
 import jwt from "jsonwebtoken";
+import {
+  securitySecret,
+  TOKEN_ISSUER,
+  WS_AUDIENCE,
+} from "@orbitledger/shared/security";
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { v5 as uuidv5 } from "uuid"; //Generates same ID for same email
@@ -6,7 +11,11 @@ import { INITIAL_BALANCE_CENTS, CreateUser, findUSerId } from "../data/store";
 import { generateToken } from "../utils/jwt";
 import { hashPassword, comparePassword } from "../utils/password";
 import { authMiddleware } from "../middleware/auth";
-import { authRateLimit, apiRateLimit } from "../middleware/rateLimit";
+import {
+  authRateLimit,
+  authAccountRateLimit,
+  apiRateLimit,
+} from "../middleware/rateLimit";
 import type { SignupRequest, SigninRequest } from "../types";
 import { signupSchema, signinSchema } from "../types";
 import { fromInternalUSD } from "@orbitledger/shared";
@@ -21,7 +30,7 @@ userRouter.post(
   async (req: Request, res: Response): Promise<void> => {
     try {
       let { email, password } = req.body as SignupRequest;
-      console.log(`[SIGNUP] Attempt for email: ${email}`);
+      console.log("[SECURITY] Account authentication/read event");
 
       const validate = signupSchema.safeParse({ email, password });
       if (!validate.success) {
@@ -35,14 +44,14 @@ userRouter.post(
         where: { email: { equals: email, mode: "insensitive" } },
       });
       if (exsistingUser) {
-        console.log(`[SIGNUP] User already exists: ${email}`);
+        console.log("[SECURITY] Account authentication/read event");
         res.status(409).json({ error: "User already exists" });
         return;
       }
       const UserId = uuidv5(email, UUID_NAMESPACE);
-      console.log(`[SIGNUP] Generated userId: ${UserId} for ${email}`);
+      console.log("[SECURITY] Account authentication/read event");
 
-      const hashedPassword = hashPassword(password);
+      const hashedPassword = await hashPassword(password);
       await prisma.user.create({
         data: {
           userId: UserId,
@@ -57,14 +66,14 @@ userRouter.post(
         hashedPassword,
         INITIAL_BALANCE_CENTS,
       );
-      const newToken = generateToken(UserId);
+      const newToken = await generateToken(UserId);
 
       res.status(201).json({
         message: "User created successfully",
         userId: newUser.userId,
         token: newToken,
       });
-      console.log(`[SIGNUP] User created successfully: ${email}`);
+      console.log("[SECURITY] Account authentication/read event");
     } catch (err) {
       console.error("[SIGNUP] Error", err);
       res.status(500).json({ error: "Internal server error in signup" });
@@ -75,6 +84,7 @@ userRouter.post(
 userRouter.post(
   "/signin",
   authRateLimit,
+  authAccountRateLimit,
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { email, password } = req.body as SigninRequest;
@@ -86,7 +96,7 @@ userRouter.post(
         });
         return;
       }
-      console.log(`[SIGNIN] Attempt for email: ${email}`);
+      console.log("[SECURITY] Account authentication/read event");
       let user = await prisma.user.findUnique({ where: { email } });
       if (!user) {
         const matches = await prisma.user.findMany({
@@ -96,26 +106,19 @@ userRouter.post(
         if (matches.length === 1) user = matches[0]!;
       }
       if (!user) {
-        console.log(`[SIGNIN] User not found: ${email}`);
+        await comparePassword(password, "");
+        console.log("[SECURITY] Sign-in failed");
         res.status(401).json({ error: "Invalid credentials" });
         return;
       }
 
-      if (user.provider && (!user.password || user.password === "")) {
-        console.log(`[SIGNIN] OAuth user attempting password login: ${email}`);
-        res.status(401).json({
-          error: `This account uses ${user.provider} login. Please sign in with ${user.provider}.`,
-        });
-        return;
-      }
-
-      const isPasswordValid = comparePassword(password, user.password);
+      const isPasswordValid = await comparePassword(password, user.password);
       if (!isPasswordValid) {
-        console.log(`[SIGNIN] Invalid password for: ${email}`);
+        console.log("[SECURITY] Account authentication/read event");
         res.status(401).json({ error: "Invalid credentials" });
         return;
       }
-      const token = generateToken(user.userId);
+      const token = await generateToken(user.userId);
       const inMemory = findUSerId(user.userId);
       if (!inMemory) {
         CreateUser(user.userId, user.email, user.password, user.balanceCents);
@@ -128,7 +131,7 @@ userRouter.post(
         userId: user.userId,
         token: token,
       });
-      console.log(`[SIGNIN] Login successful: ${email}`);
+      console.log("[SECURITY] Account authentication/read event");
     } catch (err) {
       console.error("[SIGNIN] Error", err);
       res.status(500).json({ error: "Internal server error in signin" });
@@ -147,10 +150,10 @@ userRouter.get(
         res.status(404).json({ error: "User not found" });
         return;
       }
-      console.log(`[BALANCE] Balance check for user: ${userId}`);
+      console.log("[SECURITY] Account authentication/read event");
       const user = await prisma.user.findUnique({ where: { userId } });
       if (!user) {
-        console.log(`[BALANCE] User not found: ${userId}`);
+        console.log("[SECURITY] Account authentication/read event");
         res.status(404).json({ error: "User not found" });
         return;
       }
@@ -164,7 +167,7 @@ userRouter.get(
         },
         assets: {}, // Crypto holdings (for future)
       });
-      console.log(`[BALANCE] Balance retrieved for ${userId}: $${balanceusd}`);
+      console.log("[SECURITY] Account authentication/read event");
     } catch (err) {
       console.error("[BALANCE] Error", err);
       res.status(500).json({ error: "Internal server error" });
@@ -175,9 +178,37 @@ userRouter.get(
 userRouter.get("/ws-ticket", authMiddleware, apiRateLimit, (req, res) => {
   res.json({
     ticket: jwt.sign(
-      { userId: req.userId, purpose: "websocket" },
-      process.env.JWT_SECRET!,
-      { expiresIn: 60 },
+      { userId: req.userId, sessionId: req.sessionId, purpose: "websocket" },
+      securitySecret(),
+      {
+        algorithm: "HS256",
+        issuer: TOKEN_ISSUER,
+        audience: WS_AUDIENCE,
+        expiresIn: Math.max(
+          1,
+          Math.min(
+            60,
+            Math.floor((req.sessionExpiresAt!.getTime() - Date.now()) / 1000),
+          ),
+        ),
+      },
     ),
   });
 });
+
+userRouter.post("/logout", authMiddleware, apiRateLimit, async (req, res) => {
+  await prisma.authSession.deleteMany({
+    where: { id: req.sessionId, userId: req.userId },
+  });
+  res.json({ ok: true });
+});
+
+userRouter.post(
+  "/logout-all",
+  authMiddleware,
+  apiRateLimit,
+  async (req, res) => {
+    await prisma.authSession.deleteMany({ where: { userId: req.userId } });
+    res.json({ ok: true });
+  },
+);

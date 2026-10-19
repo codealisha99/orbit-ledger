@@ -23,7 +23,7 @@ Use a dedicated account with virtual funds for demonstrations. Never display ano
 - Account overview, recorded equity, exposure/risk, performance, history export, account details, and a saved-workspace download.
 - Black and light app themes, mobile navigation, accessible native dialogs, explicit empty/unavailable states, and reduced-motion support.
 
-This is an educational simulation, not a brokerage. Simulated execution does not reproduce every condition on a real exchange. Password recovery, user-managed session revocation, email/push alerts, additional assets, and real-money trading are outside this MVP. The wider dependency and operational gates in the release runbook remain relevant.
+This is an educational simulation, not a brokerage. Simulated execution does not reproduce every condition on a real exchange. Password recovery, email ownership verification, email/push alerts, additional assets, and real-money trading are outside this MVP. Logout now revokes the current session server-side, and Account offers sign-out on all devices. See `security-review-20261019.md`. The wider dependency and operational gates in the release runbook remain relevant.
 
 ## Verification for this pass
 

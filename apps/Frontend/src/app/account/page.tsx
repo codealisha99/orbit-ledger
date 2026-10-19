@@ -1,14 +1,34 @@
 "use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import "../dashboard/dashboard.css";
 import { useEffect, useState } from "react";
 import { Download, ShieldCheck, ArrowUpRight, UserRound } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import { api } from "@/lib/client";
-import { useAccount } from "@/lib/account";
+import { clearAccount, useAccount } from "@/lib/account";
 import type { Workspace } from "@/lib/workspace";
 export default function AccountPage() {
   const account = useAccount();
+  const router = useRouter();
+  const [signingOut, setSigningOut] = useState(false);
+  async function signOutEverywhere() {
+    setSigningOut(true);
+    setError(null);
+    try {
+      await api("session/logout-all", { method: "POST", body: "{}" });
+      clearAccount();
+      sessionStorage.removeItem("orbit-pending");
+      localStorage.removeItem("token");
+      localStorage.removeItem("userID");
+      router.replace("/signin");
+      router.refresh();
+    } catch {
+      setError("Could not sign out all devices. Please retry.");
+    } finally {
+      setSigningOut(false);
+    }
+  }
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
@@ -112,6 +132,14 @@ export default function AccountPage() {
                 <button className="quiet download-workspace" onClick={download}>
                   <Download size={15} />
                   Download watchlist & alerts
+                </button>
+                <button
+                  className="quiet download-workspace"
+                  disabled={signingOut}
+                  onClick={signOutEverywhere}
+                >
+                  <ShieldCheck size={15} />
+                  {signingOut ? "Signing out…" : "Sign out all devices"}
                 </button>
                 <p className="muted">
                   A JSON copy of your saved workspace and account details. Trade

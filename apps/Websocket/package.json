@@ -16,11 +16,11 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "crypto": "^1.0.1",
     "dotenv": "^17.2.3",
     "jsonwebtoken": "^9.0.2",
     "redis": "^5.9.0",
     "@orbitledger/shared": "workspace:*",
-    "ws": "^8.22.0"
+    "ws": "^8.22.0",
+    "@orbitledger/database": "workspace:*"
   }
 }

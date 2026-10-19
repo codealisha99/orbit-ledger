@@ -33,7 +33,11 @@ export class ApiUpstream {
           signal: AbortSignal.timeout(5000),
         });
         const health = await response.json();
-        if (!response.ok || health.apiContract !== 2) {
+        if (
+          !response.ok ||
+          health.apiContract !== 2 ||
+          health.capabilities?.revocableSessions !== true
+        ) {
           throw new ServiceUnavailable(
             "The trading service is being updated. Please try again shortly.",
           );

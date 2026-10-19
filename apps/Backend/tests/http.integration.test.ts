@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { beforeAll, afterAll, test, expect } from "bun:test";
 import express from "express";
 import { createServer } from "node:http";
@@ -58,7 +59,7 @@ beforeAll(async () => {
       balanceCents: 500000,
     },
   });
-  token = generateToken(userId);
+  token = await generateToken(userId);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
   PriceStorageMp.set("BTC", {
@@ -128,13 +129,18 @@ test("receipts and events never return another account’s records", async () =>
   const event = await prisma.accountEvent.findFirstOrThrow({
     where: { userId },
   });
-  const otherToken = generateToken(`other-${randomUUID()}`);
+  const otherId = `other-${randomUUID()}`;
+  await prisma.user.create({
+    data: { userId: otherId, email: `${otherId}@example.test`, password: "" },
+  });
+  const otherToken = await generateToken(otherId);
   const response = await fetch(`${base}/trade/receipt/${event.positionId}`, {
     headers: { Authorization: `Bearer ${otherToken}` },
   });
   const result = (await response.json()) as any;
   expect(result.events).toEqual([]);
   expect(result.executions).toEqual([]);
+  await prisma.user.delete({ where: { userId: otherId } });
   const events = (await (
     await fetch(`${base}/trade/events?after=0`, { headers: headers() })
   ).json()) as any;
@@ -155,14 +161,32 @@ test("invalid history queries fail clearly without removing durable history", as
 });
 test("OAuth codes expire and can only be exchanged once", async () => {
   const code = randomUUID();
+  const verifier = "a".repeat(64);
+  const challenge = createHash("sha256").update(verifier).digest("hex");
   await prisma.loginCode.create({
-    data: { code, userId, expiresAt: new Date(Date.now() + 60000) },
+    data: { code, userId, challenge, expiresAt: new Date(Date.now() + 60000) },
   });
   const options = {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code }),
+    body: JSON.stringify({ code, verifier }),
   };
+  expect(
+    (
+      await fetch(`${base}/auth/exchange`, {
+        ...options,
+        body: JSON.stringify({ code, verifier: "b".repeat(64) }),
+      })
+    ).status,
+  ).toBe(401);
+  expect(
+    (
+      await fetch(`${base}/auth/exchange`, {
+        ...options,
+        body: JSON.stringify({ code }),
+      })
+    ).status,
+  ).toBe(401);
   const first = await fetch(`${base}/auth/exchange`, options);
   expect(first.status).toBe(200);
   expect((await fetch(`${base}/auth/exchange`, options)).status).toBe(401);
@@ -296,7 +320,7 @@ test("password allocation reconciles and legacy mixed-case email still signs in"
     data: {
       userId: legacyId,
       email: legacyEmail,
-      password: hashPassword("LocalLegacyOnly2026!"),
+      password: await hashPassword("LocalLegacyOnly2026!"),
       balanceCents: 12345,
     },
   });
@@ -409,7 +433,7 @@ test("alerts retry once, require fresh prices, and remain private", async () => 
   try {
     const otherHeaders = {
       ...headers(),
-      Authorization: `Bearer ${generateToken(otherId)}`,
+      Authorization: `Bearer ${await generateToken(otherId)}`,
     };
     const other = await (
       await fetch(`${base}/user/workspace`, { headers: otherHeaders })
@@ -489,4 +513,72 @@ test("workspace validates markets, levels, and bounded alert capacity", async ()
   expect(requests.filter((r) => r.status === 400).length).toBe(1);
   expect(await prisma.priceAlert.count({ where: { userId } })).toBe(12);
   await prisma.priceAlert.deleteMany({ where: { userId } });
+});
+
+test("logout revokes bearer tokens and all-device logout revokes sibling sessions", async () => {
+  const first = await generateToken(userId),
+    second = await generateToken(userId);
+  const auth = (value: string) => ({ Authorization: `Bearer ${value}` });
+  expect(
+    (
+      await fetch(`${base}/user/logout`, {
+        method: "POST",
+        headers: auth(first),
+      })
+    ).status,
+  ).toBe(200);
+  expect(
+    (await fetch(`${base}/user/profile`, { headers: auth(first) })).status,
+  ).toBe(403);
+  expect(
+    (await fetch(`${base}/user/profile`, { headers: auth(second) })).status,
+  ).toBe(200);
+  expect(
+    (
+      await fetch(`${base}/user/logout-all`, {
+        method: "POST",
+        headers: auth(second),
+      })
+    ).status,
+  ).toBe(200);
+  expect(
+    (await fetch(`${base}/user/profile`, { headers: auth(second) })).status,
+  ).toBe(403);
+});
+
+test("private socket tickets require a live parent session and expire at their signed deadline", async () => {
+  const { Verifytokenws } = await import("../../Websocket/src/utils/wsjwt");
+  const { default: jwt } = await import("jsonwebtoken");
+  const { WS_AUDIENCE, TOKEN_ISSUER } =
+    await import("@orbitledger/shared/security");
+  const session = await generateToken(userId);
+  const response = await fetch(`${base}/user/ws-ticket`, {
+    headers: { Authorization: `Bearer ${session}` },
+  });
+  const { ticket } = (await response.json()) as { ticket: string };
+  const claims = jwt.decode(ticket) as {
+    userId: string;
+    sessionId: string;
+    exp: number;
+  };
+  expect((await Verifytokenws(ticket))?.authenticatedUntil).toBe(
+    claims.exp * 1000,
+  );
+  expect(await Verifytokenws(session)).toBeNull();
+  const expired = jwt.sign(
+    { userId, sessionId: claims.sessionId, purpose: "websocket" },
+    process.env.JWT_SECRET!,
+    {
+      algorithm: "HS256",
+      issuer: TOKEN_ISSUER,
+      audience: WS_AUDIENCE,
+      expiresIn: -1,
+    },
+  );
+  expect(await Verifytokenws(expired)).toBeNull();
+  await fetch(`${base}/user/logout`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${session}` },
+  });
+  expect(await Verifytokenws(ticket)).toBeNull();
 });

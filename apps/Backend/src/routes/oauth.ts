@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { prisma } from "@orbitledger/database";
-import { randomBytes } from "crypto";
+import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import { oauthConfig, validateOAuthConfig } from "../config/oauth";
 import { findOrCreateOAuthUser } from "../services/oauthService";
 import { generateToken } from "../utils/jwt";
@@ -19,6 +19,43 @@ function parseCookie(
 }
 
 const oauthRouter = Router();
+const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax" as const,
+  path: "/api/v2/auth",
+  maxAge: 600000,
+};
+function startBinding(req: Request, res: Response, provider: string) {
+  const challenge =
+    typeof req.query.challenge === "string" ? req.query.challenge : "";
+  if (!/^[a-f0-9]{64}$/.test(challenge)) {
+    res
+      .status(400)
+      .json({ error: "Start provider sign-in from the application." });
+    return null;
+  }
+  const state = randomBytes(32).toString("hex");
+  res.cookie(`oauthState_${provider}`, state, cookieOptions);
+  res.cookie(`oauthChallenge_${provider}`, challenge, cookieOptions);
+  return state;
+}
+function consumeBinding(req: Request, res: Response, provider: string) {
+  const state = typeof req.query.state === "string" ? req.query.state : "";
+  const saved = parseCookie(req.headers.cookie, `oauthState_${provider}`);
+  const challenge = parseCookie(
+    req.headers.cookie,
+    `oauthChallenge_${provider}`,
+  );
+  res.clearCookie(`oauthState_${provider}`, cookieOptions);
+  res.clearCookie(`oauthChallenge_${provider}`, cookieOptions);
+  return saved &&
+    state === saved &&
+    challenge &&
+    /^[a-f0-9]{64}$/.test(challenge)
+    ? challenge
+    : null;
+}
 
 interface GoogleTokenResponse {
   access_token?: string;
@@ -60,12 +97,8 @@ oauthRouter.get("/google", oauthRateLimit, (req: Request, res: Response) => {
     return;
   }
 
-  const state = randomBytes(16).toString("hex");
-  res.cookie("oauthState", state, {
-    httpOnly: true,
-    sameSite: "lax",
-    maxAge: 600000,
-  });
+  const state = startBinding(req, res, "google");
+  if (!state) return;
 
   const googleAuthURL = new URL("https://accounts.google.com/o/oauth2/v2/auth");
 
@@ -88,15 +121,11 @@ oauthRouter.get(
   "/google/callback",
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const returnedState = req.query.state as string;
-      const cookieState = parseCookie(req.headers.cookie, "oauthState");
-
-      if (!returnedState || !cookieState || returnedState !== cookieState) {
-        console.error("[Google OAuth] CSRF state mismatch");
+      const challenge = consumeBinding(req, res, "google");
+      if (!challenge) {
         res.redirect(`${oauthConfig.frontendURL}/signin?error=invalid_state`);
         return;
       }
-      res.clearCookie("oauthState");
 
       const code = req.query.code as string;
 
@@ -109,6 +138,7 @@ oauthRouter.get(
       console.log("[Google OAuth] Exchanging code for tokens...");
 
       const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+        signal: AbortSignal.timeout(10000),
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({
@@ -122,8 +152,8 @@ oauthRouter.get(
 
       const tokens = (await tokenResponse.json()) as GoogleTokenResponse;
 
-      if (!tokens.access_token) {
-        console.error("[Google OAuth] Token error:", tokens);
+      if (!tokenResponse.ok || !tokens.access_token) {
+        console.error("[OAuth] Google token exchange rejected");
         res.redirect(`${oauthConfig.frontendURL}/signin?error=token_failed`);
         return;
       }
@@ -133,19 +163,26 @@ oauthRouter.get(
       const profileResponse = await fetch(
         "https://www.googleapis.com/oauth2/v2/userinfo",
         {
+          signal: AbortSignal.timeout(10000),
           headers: { Authorization: `Bearer ${tokens.access_token}` },
         },
       );
 
       const profile = (await profileResponse.json()) as GoogleProfileResponse;
 
-      if (!profile.email || !profile.verified_email) {
+      if (
+        !profileResponse.ok ||
+        typeof profile.id !== "string" ||
+        !profile.id ||
+        !profile.email ||
+        profile.verified_email !== true
+      ) {
         console.error("[Google OAuth] No email in profile");
         res.redirect(`${oauthConfig.frontendURL}/signin?error=no_email`);
         return;
       }
 
-      console.log(`[Google OAuth] User profile: ${profile.email}`);
+      console.log("[OAuth] Verified provider sign-in completed");
 
       const user = await findOrCreateOAuthUser({
         provider: "google",
@@ -160,12 +197,13 @@ oauthRouter.get(
       await prisma.loginCode.create({
         data: {
           code: codeValue,
+          challenge,
           userId: user.userId,
           expiresAt: new Date(Date.now() + 60000),
         },
       });
 
-      console.log(`[Google OAuth] Success! Redirecting user: ${user.email}`);
+      console.log("[OAuth] Verified provider sign-in completed");
 
       res.redirect(
         `${oauthConfig.frontendURL}/auth/callback?code=${codeValue}`,
@@ -185,12 +223,8 @@ oauthRouter.get("/github", oauthRateLimit, (req: Request, res: Response) => {
     return;
   }
 
-  const state = randomBytes(16).toString("hex");
-  res.cookie("oauthState", state, {
-    httpOnly: true,
-    sameSite: "lax",
-    maxAge: 600000,
-  });
+  const state = startBinding(req, res, "github");
+  if (!state) return;
 
   const githubAuthURL = new URL("https://github.com/login/oauth/authorize");
 
@@ -210,15 +244,11 @@ oauthRouter.get(
   "/github/callback",
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const returnedState = req.query.state as string;
-      const cookieState = parseCookie(req.headers.cookie, "oauthState");
-
-      if (!returnedState || !cookieState || returnedState !== cookieState) {
-        console.error("[GitHub OAuth] CSRF state mismatch");
+      const challenge = consumeBinding(req, res, "github");
+      if (!challenge) {
         res.redirect(`${oauthConfig.frontendURL}/signin?error=invalid_state`);
         return;
       }
-      res.clearCookie("oauthState");
 
       const code = req.query.code as string;
 
@@ -233,6 +263,7 @@ oauthRouter.get(
       const tokenResponse = await fetch(
         "https://github.com/login/oauth/access_token",
         {
+          signal: AbortSignal.timeout(10000),
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -249,8 +280,8 @@ oauthRouter.get(
 
       const tokens = (await tokenResponse.json()) as GitHubTokenResponse;
 
-      if (!tokens.access_token) {
-        console.error("[GitHub OAuth] Token error:", tokens);
+      if (!tokenResponse.ok || !tokens.access_token) {
+        console.error("[OAuth] GitHub token exchange rejected");
         res.redirect(`${oauthConfig.frontendURL}/signin?error=token_failed`);
         return;
       }
@@ -258,6 +289,7 @@ oauthRouter.get(
       console.log("[GitHub OAuth] Fetching user profile...");
 
       const profileResponse = await fetch("https://api.github.com/user", {
+        signal: AbortSignal.timeout(10000),
         headers: {
           Authorization: `Bearer ${tokens.access_token}`,
           Accept: "application/vnd.github.v3+json",
@@ -267,6 +299,12 @@ oauthRouter.get(
 
       const profile = (await profileResponse.json()) as GitHubProfileResponse;
 
+      if (
+        !profileResponse.ok ||
+        !Number.isSafeInteger(profile.id) ||
+        profile.id <= 0
+      )
+        throw new Error("Provider profile unavailable");
       let email: string | undefined;
 
       {
@@ -275,6 +313,7 @@ oauthRouter.get(
         const emailsResponse = await fetch(
           "https://api.github.com/user/emails",
           {
+            signal: AbortSignal.timeout(10000),
             headers: {
               Authorization: `Bearer ${tokens.access_token}`,
               Accept: "application/vnd.github.v3+json",
@@ -285,7 +324,7 @@ oauthRouter.get(
 
         const emails = (await emailsResponse.json()) as GitHubEmail[];
 
-        if (Array.isArray(emails)) {
+        if (emailsResponse.ok && Array.isArray(emails)) {
           const primaryEmail = emails.find(
             (e: GitHubEmail) => e.primary && e.verified,
           );
@@ -304,7 +343,7 @@ oauthRouter.get(
         return;
       }
 
-      console.log(`[GitHub OAuth] User profile: ${email}`);
+      console.log("[OAuth] Verified provider sign-in completed");
 
       const user = await findOrCreateOAuthUser({
         provider: "github",
@@ -319,12 +358,13 @@ oauthRouter.get(
       await prisma.loginCode.create({
         data: {
           code: codeValue,
+          challenge,
           userId: user.userId,
           expiresAt: new Date(Date.now() + 60000),
         },
       });
 
-      console.log(`[GitHub OAuth] Success! Redirecting user: ${user.email}`);
+      console.log("[OAuth] Verified provider sign-in completed");
 
       res.redirect(
         `${oauthConfig.frontendURL}/auth/callback?code=${codeValue}`,
@@ -339,9 +379,22 @@ oauthRouter.get(
 oauthRouter.post("/exchange", oauthRateLimit, async (req, res, next) => {
   try {
     const code = typeof req.body.code === "string" ? req.body.code : "";
+    const verifier =
+      typeof req.body.verifier === "string" ? req.body.verifier : "";
+    const proof = /^[a-f0-9]{64}$/.test(verifier)
+      ? createHash("sha256").update(verifier).digest("hex")
+      : "";
     const login = await prisma.$transaction(async (tx) => {
       const row = await tx.loginCode.findUnique({ where: { code } });
-      if (!row || row.expiresAt < new Date()) return null;
+      if (
+        !row ||
+        row.expiresAt < new Date() ||
+        !row.challenge ||
+        !proof ||
+        row.challenge.length !== proof.length ||
+        !timingSafeEqual(Buffer.from(row.challenge), Buffer.from(proof))
+      )
+        return null;
       const removed = await tx.loginCode.deleteMany({
         where: { code, expiresAt: { gt: new Date() } },
       });
@@ -353,7 +406,10 @@ oauthRouter.post("/exchange", oauthRateLimit, async (req, res, next) => {
         .json({ error: "This sign-in link has expired or was already used." });
       return;
     }
-    res.json({ token: generateToken(login.userId), userId: login.userId });
+    res.json({
+      token: await generateToken(login.userId),
+      userId: login.userId,
+    });
   } catch (error) {
     next(error);
   }

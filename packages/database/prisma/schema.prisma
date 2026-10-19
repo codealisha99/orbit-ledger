@@ -55,6 +55,7 @@ model User {
   providerId    String?  // OAuth provider's user ID
   emailVerified Boolean  @default(false)
   avatarUrl     String?  // Profile picture from OAuth
+  sessions      AuthSession[]
   watchlist     WatchMarket[]
   priceAlerts   PriceAlert[]
 
@@ -243,7 +244,19 @@ model EquitySnapshot {
   @@index([userId, createdAt])
 }
 model LoginCode {
+  challenge String?
   code String @id
   userId String
   expiresAt DateTime
+}
+
+model AuthSession {
+  id String @id
+  userId String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  user User @relation(fields: [userId], references: [userId], onDelete: Cascade, onUpdate: NoAction)
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+  @@map("auth_sessions")
 }

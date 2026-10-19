@@ -13,9 +13,7 @@ export interface OAuthProfile {
 }
 
 export async function findOrCreateOAuthUser(profile: OAuthProfile) {
-  console.log(
-    `[OAuth] Processing ${profile.provider} login for: ${profile.email}`,
-  );
+  profile = { ...profile, email: profile.email.trim().toLowerCase() };
 
   let user = await prisma.user.findFirst({
     where: {
@@ -25,9 +23,7 @@ export async function findOrCreateOAuthUser(profile: OAuthProfile) {
   });
 
   if (user) {
-    console.log(
-      `[OAuth] Existing ${profile.provider} user found: ${user.email}`,
-    );
+    console.log("[OAuth] Existing provider identity verified");
 
     if (!StoreData.has(user.userId)) {
       StoreData.set(user.userId, {
@@ -43,8 +39,8 @@ export async function findOrCreateOAuthUser(profile: OAuthProfile) {
     return user;
   }
 
-  const existingEmailUser = await prisma.user.findUnique({
-    where: { email: profile.email },
+  const existingEmailUser = await prisma.user.findFirst({
+    where: { email: { equals: profile.email, mode: "insensitive" } },
   });
 
   if (existingEmailUser) {
@@ -74,7 +70,7 @@ export async function findOrCreateOAuthUser(profile: OAuthProfile) {
 
   CreateUser(userId, profile.email, "", user.balanceCents);
 
-  console.log(`[OAuth] Created new ${profile.provider} user: ${user.email}`);
+  console.log("[OAuth] New provider identity created");
   return user;
 }
 

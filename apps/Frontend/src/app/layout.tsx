@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import type { Metadata } from "next";
 import { Toaster } from "react-hot-toast";
 
@@ -9,11 +10,12 @@ export const metadata: Metadata = {
     "Practice crypto trading with virtual funds, clear costs, and a complete trade history.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -30,6 +32,7 @@ export default function RootLayout({
       </head>
       <body className="bg-[var(--nt-bg)] text-[var(--nt-text)] antialiased">
         <script
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: `try { var theme = localStorage.getItem('orbitledger-theme'); document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark'; } catch (_) { document.documentElement.dataset.theme = 'dark'; }`,
           }}

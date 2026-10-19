@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { verifiedProxyIp } from "@orbitledger/shared/security";
 import { verifyToken } from "../utils/jwt";
 import { createClient } from "redis";
 import { ipKeyGenerator, rateLimit } from "express-rate-limit";
@@ -48,11 +50,21 @@ export async function closeRateLimitStore(): Promise<void> {
   if (redisClient?.isOpen) await redisClient.quit();
 }
 
+function ipKey(req: Request) {
+  const forwarded = verifiedProxyIp({
+    ip: req.get("X-Orbit-Client-IP"),
+    timestamp: req.get("X-Orbit-Client-Time"),
+    signature: req.get("X-Orbit-Client-Signature"),
+  });
+  return ipKeyGenerator(
+    forwarded || req.ip || req.socket.remoteAddress || "unknown",
+  );
+}
 function clientKey(req: Request): string {
-  const ipKey = ipKeyGenerator(req.ip || req.socket.remoteAddress || "unknown");
+  const ip = ipKey(req);
   const token = req.headers.authorization?.split(" ")[1];
   const userId = req.userId ?? (token ? verifyToken(token)?.userId : undefined);
-  return userId ? `user:${userId}` : ipKey;
+  return userId ? `user:${userId}` : ip;
 }
 
 function limiter(prefix: string, windowMs: number, max: number, error: string) {
@@ -62,8 +74,20 @@ function limiter(prefix: string, windowMs: number, max: number, error: string) {
     message: { error },
     standardHeaders: "draft-8",
     legacyHeaders: false,
-    keyGenerator: clientKey,
-    skipSuccessfulRequests: prefix === "auth",
+    keyGenerator:
+      prefix === "auth-ip" || prefix === "oauth"
+        ? ipKey
+        : prefix === "auth-account"
+          ? (req: Request) =>
+              createHash("sha256")
+                .update(
+                  typeof req.body?.email === "string"
+                    ? req.body.email.trim().toLowerCase().slice(0, 254)
+                    : "invalid-input",
+                )
+                .digest("hex")
+          : clientKey,
+    skipSuccessfulRequests: prefix === "auth-account",
     ...(redisClient
       ? {
           store: new RedisStore({
@@ -79,10 +103,17 @@ function limiter(prefix: string, windowMs: number, max: number, error: string) {
 }
 
 export const authRateLimit = limiter(
-  "auth",
+  "auth-ip",
+  15 * 60 * 1000,
+  30,
+  "Too many authentication attempts. Please try again in 15 minutes.",
+);
+
+export const authAccountRateLimit = limiter(
+  "auth-account",
   15 * 60 * 1000,
   5,
-  "Too many authentication attempts. Please try again in 15 minutes.",
+  "Too many attempts for this account. Please try again in 15 minutes.",
 );
 
 export const oauthRateLimit = limiter(
