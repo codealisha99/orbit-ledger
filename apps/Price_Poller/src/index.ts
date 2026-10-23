@@ -1,6 +1,11 @@
 import "../../../packages/database/src/env";
-import { startBinance, stopBinance, binanceEmitter } from "./binance";
-import { startRedis, stopRedis } from "./redish-publisher";
+import {
+  startBinance,
+  stopBinance,
+  restartBinance,
+  binanceEmitter,
+} from "./binance";
+import { startRedis, stopRedis, publisherHealth, reconnectPublisher } from "./redish-publisher";
 import { writeBatch, pruneOldTrades } from "./database";
 import { enqueue, pendingBatch, acknowledge, spoolSize } from "./spool";
 import {
@@ -53,6 +58,46 @@ binanceEmitter.on("trade", (trade) => {
 });
 const timer = setInterval(() => void flush(), 1000);
 const pruneTimer = setInterval(() => void pruneOldTrades(), 30 * 60 * 1000);
+
+const FEED_ALIVE_WINDOW = 30000;
+const FEED_SILENCE_SOFT = 90000; // try reconnecting the socket
+const FEED_SILENCE_HARD = 300000; // exit(1) so the platform restart policy recovers
+const PUB_STALE_SOFT = 60000; // force Redis reconnect
+const PUB_STALE_HARD = 180000; // exit(1) for a clean process restart
+let lastFeedAttemptAt = 0;
+
+const watchdogTimer = setInterval(() => {
+  const now = Date.now();
+  if (lastTradeAt <= 0) return;
+  const feedAlive = now - lastTradeAt < FEED_ALIVE_WINDOW;
+
+  const { lastPublishOkAt, publishFailures } = publisherHealth();
+  if (feedAlive && now - lastPublishOkAt > PUB_STALE_SOFT) {
+    console.warn(
+      JSON.stringify({
+        metric: "publisher_stale",
+        lastPublishOkAt,
+        publishFailures,
+      }),
+    );
+    void reconnectPublisher();
+  }
+  if (feedAlive && lastPublishOkAt > 0 && now - lastPublishOkAt > PUB_STALE_HARD) {
+    console.error("[WATCHDOG] No confirmed publishes in 3m. Restarting process.");
+    process.exit(1);
+  }
+
+  if (!feedAlive && now - lastTradeAt > FEED_SILENCE_SOFT && now - lastFeedAttemptAt > 45000) {
+    lastFeedAttemptAt = now;
+    console.warn(JSON.stringify({ metric: "feed_silent_ms", value: now - lastTradeAt }));
+    restartBinance();
+  }
+  if (!feedAlive && now - lastTradeAt > FEED_SILENCE_HARD) {
+    console.error("[WATCHDOG] No trades for 5m. Restarting process.");
+    process.exit(1);
+  }
+}, 15000);
+
 const healthTimer = setInterval(() => {
   const pending = spoolSize();
   if (pending)
@@ -66,6 +111,7 @@ async function shutdown() {
   stopBinance();
   clearInterval(timer);
   clearInterval(pruneTimer);
+  clearInterval(watchdogTimer);
   clearInterval(healthTimer);
   if (!flushing) await flush();
   if (kafkaEnabled) {
@@ -98,6 +144,8 @@ if (healthPort)
           pending: spoolSize(),
           lastTradeAt,
           lastFlushAt,
+          lastPublishOkAt: publisherHealth().lastPublishOkAt,
+          publishFailures: publisherHealth().publishFailures,
           downstreamError: !!lastError,
           sourceHalted,
           revision:

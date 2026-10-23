@@ -81,3 +81,16 @@ export function stopBinance() {
   wss?.close();
   wss = null;
 }
+
+export function restartBinance() {
+  if (isShuttingDown) return;
+  if (reconnectTimeout) clearTimeout(reconnectTimeout);
+  reconnectTimeout = null;
+  const stale = wss;
+  wss = null;
+  stale?.removeAllListeners();
+  stale?.terminate();
+  reconnectAttempt = 0;
+  console.log("[BINANCE] Restarting feed after silence");
+  startBinance();
+}

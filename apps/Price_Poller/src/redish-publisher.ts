@@ -21,6 +21,12 @@ interface typeofredishPriceData {
 redis.on("error", (error) => console.error("[REDIS]", error.message));
 let tradeListener: ((tradeData: Trades) => Promise<void>) | null = null;
 let isShuttingDown = false;
+let lastPublishOkAt = 0;
+let publishFailures = 0;
+
+export function publisherHealth() {
+  return { lastPublishOkAt, publishFailures };
+}
 
 export async function startRedis() {
   try {
@@ -45,8 +51,12 @@ export async function startRedis() {
         };
         const channel = tradeData.symbol.replace("USDT", ""); // Something like "SOL " Btc"
         await redis.publish(channel, JSON.stringify(redisPriceData));
+        lastPublishOkAt = Date.now();
+        publishFailures = 0;
       } catch (err) {
-        console.error("Error publishing trade:", err);
+        publishFailures++;
+        if (publishFailures % 10 === 1)
+          console.error("Error publishing trade:", err);
       }
     };
 
@@ -70,4 +80,20 @@ export async function stopRedis() {
   isShuttingDown = true;
   if (tradeListener) binanceEmitter.removeListener("trade", tradeListener);
   if (redis.isOpen) await redis.quit();
+}
+
+let reconnecting = false;
+export async function reconnectPublisher() {
+  if (reconnecting) return;
+  reconnecting = true;
+  try {
+    if (tradeListener) binanceEmitter.removeListener("trade", tradeListener);
+    const quit = redis.isOpen ? redis.quit() : Promise.resolve();
+    await Promise.race([quit, new Promise((r) => setTimeout(r, 5000))]);
+    await startRedis();
+  } catch (err) {
+    console.error("[REDIS] Reconnect attempt failed", err);
+  } finally {
+    reconnecting = false;
+  }
 }
