@@ -1,7 +1,7 @@
 import "../../../packages/database/src/env";
 import { startBinance, stopBinance, binanceEmitter } from "./binance";
 import { startRedis, stopRedis } from "./redish-publisher";
-import { writeBatch } from "./database";
+import { writeBatch, pruneOldTrades } from "./database";
 import { enqueue, pendingBatch, acknowledge, spoolSize } from "./spool";
 import {
   startKafkaProducer,
@@ -52,17 +52,20 @@ binanceEmitter.on("trade", (trade) => {
   }
 });
 const timer = setInterval(() => void flush(), 1000);
+const pruneTimer = setInterval(() => void pruneOldTrades(), 30 * 60 * 1000);
 const healthTimer = setInterval(() => {
   const pending = spoolSize();
   if (pending)
     console.log(JSON.stringify({ metric: "ingest_pending", value: pending }));
 }, 30000);
 startBinance();
+setTimeout(() => void pruneOldTrades(), 45000);
 async function shutdown() {
   if (stopping) return;
   stopping = true;
   stopBinance();
   clearInterval(timer);
+  clearInterval(pruneTimer);
   clearInterval(healthTimer);
   if (!flushing) await flush();
   if (kafkaEnabled) {
