@@ -2,6 +2,8 @@
 
 OrbitLedger is a crypto paper trading workspace for BTC, ETH, and SOL. It uses virtual USD collateral and simulated execution quotes derived from Binance public trades. No real assets are bought or sold.
 
+Leveraged positions are simulated linear perpetuals with no expiry. The paper funding rule is fixed at 1 basis point every 8 hours (longs pay, shorts receive); it is educational and is not a live exchange funding rate. Funding is booked against isolated collateral and shown in account activity and receipts.
+
 The Trading page separates market context, chart intervals/ranges, trade entry, positions, completed trades, public market prints, and private account activity. Dashboard reconciles available cash, reserved collateral, signed P&L, exposure, and genuine equity history.
 
 ## Local setup

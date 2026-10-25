@@ -137,6 +137,10 @@ function EventDetails({ event }: { event: AccountEvent }) {
                 : "Unknown legacy costs"}
             </dd>
           </div>
+          <div>
+            <dt>Funding net</dt>
+            <dd>{signedMoney(-exit.fundingAccruedCents)}</dd>
+          </div>
         </>
       )}
       {payload.feeCents !== undefined && (

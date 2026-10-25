@@ -2,6 +2,8 @@
 
 This change implements the trading/dashboard rebuild and the supporting financial, market, session, and persistence contracts. It has been tested locally against isolated PostgreSQL databases. It is **not a production rollout or a claim that historical account data has been recovered**.
 
+The perpetual paper-funding feature adds `fundingAccruedCents` and `lastFundingAt` to active positions, adds `fundingAccruedCents` to closed executions, and creates `perp_funding_payments`. Apply `20261025090000_perpetual_funding` before deploying the backend or frontend revision that reads these fields. Existing open paper positions begin accruing only after their first eight-hour interval from migration time.
+
 ## Before applying the migration
 
 1. Take a verified database backup and rehearse restoring it to a disposable database. Preserve legacy user/order snapshots and database logs as evidence. Do not restart the old backend while investigating the startup deletion bug.

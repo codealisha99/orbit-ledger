@@ -139,6 +139,7 @@ export default function History({
         "gross_pnl_cents",
         "entry_costs_cents",
         "exit_fee_cents",
+        "funding_net_cents",
         "net_pnl_cents",
       ];
       const csv = [
@@ -155,6 +156,7 @@ export default function History({
           o.pnl,
           o.entryFeeCents,
           o.exitFeeCents,
+          -o.fundingAccruedCents,
           o.netPnlCents,
         ]),
       ]

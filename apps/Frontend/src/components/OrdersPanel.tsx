@@ -30,6 +30,16 @@ export default function OrdersPanel({ symbol }: { symbol: Symbol }) {
     executions: Execution[];
   } | null>(null);
   const [receiptError, setReceiptError] = useState<string | null>(null);
+  const [fundingRows, setFundingRows] = useState<
+    Array<{
+      id: string;
+      positionId: string;
+      asset: string;
+      side: string;
+      amountCents: number;
+      appliedAt: string;
+    }>
+  >([]);
   const positions =
     account.summary?.orders.filter(
       (p) => !selectedOnly || p.asset === symbol,
@@ -56,6 +66,11 @@ export default function OrdersPanel({ symbol }: { symbol: Symbol }) {
   useEffect(() => {
     if (requestedReceipt) void showReceipt(requestedReceipt);
   }, [requestedReceipt]);
+  useEffect(() => {
+    void api<{ payments: typeof fundingRows }>("trade/funding")
+      .then((data) => setFundingRows(data.payments))
+      .catch(() => setFundingRows([]));
+  }, [account.summary?.version]);
   function selectTab(next: string) {
     setTab(next);
     const url = new URL(location.href);
@@ -214,6 +229,9 @@ export default function OrdersPanel({ symbol }: { symbol: Symbol }) {
                             ? "Unavailable"
                             : signedMoney(p.pnlCents)}
                           <span className="muted">Gross · before exit fee</span>
+                          <span>
+                            Funding {signedMoney(-p.fundingAccruedCents)} net
+                          </span>
                         </td>
                         <td>
                           <div className="row-actions">
@@ -263,6 +281,11 @@ export default function OrdersPanel({ symbol }: { symbol: Symbol }) {
                                   <br />
                                   Liquidation {price(p.liquidationPrice)}
                                   <br />
+                                  Funding net{" "}
+                                  {signedMoney(-p.fundingAccruedCents)}
+                                  <br />
+                                  Next funding {date(p.nextFundingAt)} UTC
+                                  <br />
                                   Allocated costs{" "}
                                   {p.feesRecorded
                                     ? money(p.entryFeeCents)
@@ -286,6 +309,30 @@ export default function OrdersPanel({ symbol }: { symbol: Symbol }) {
         {tab === "market" && <MarketTrades symbol={symbol} />}
         {tab === "activity" && (
           <div className="activity-list">
+            <h3>Perpetual funding history</h3>
+            {fundingRows.length === 0 ? (
+              <p className="muted">
+                No funding payments yet. Funding is applied every 8 hours while
+                a position is open.
+              </p>
+            ) : (
+              fundingRows.map((row) => (
+                <div className="activity-row" key={row.id}>
+                  <span>
+                    <b>
+                      {row.asset} {row.side === "buy" ? "long" : "short"}
+                    </b>
+                    <small>
+                      Position {row.positionId.slice(0, 8)} · simulated funding
+                    </small>
+                  </span>
+                  <span>
+                    {signedMoney(-row.amountCents)}
+                    <small>{date(row.appliedAt)} UTC</small>
+                  </span>
+                </div>
+              ))
+            )}
             {account.events.length === 0 ? (
               <p className="empty">
                 No recorded account activity yet. New trade receipts will appear

@@ -2,6 +2,8 @@
 
 OrbitLedger is a crypto paper trading application for BTC, ETH, and SOL. It combines source exchange data with simulated execution, virtual USD collateral, recorded equity, and an account-owned workspace. There are no deposits, withdrawals, or real exchange orders.
 
+Leveraged positions are modeled as linear perpetuals without expiry. Simulated funding is fixed at 1 basis point every 8 hours; longs pay and shorts receive. This is an educational assumption, not exchange data. Funding is applied only while a position is open and its market quote is fresh.
+
 ## A five-minute project walkthrough
 
 1. **Start at Home.** Show the interactive illustrative long/short example. The example is explicitly separate from real market data. Create an email/password account or sign in. A completed sign-in opens Dashboard; an explicit internal destination is preserved.

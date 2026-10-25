@@ -94,7 +94,7 @@ export default function BuySell({ symbol }: { symbol: Symbol }) {
   return (
     <aside className="ticket surface">
       <div className="section-heading">
-        <h2>Place a paper trade</h2>
+        <h2>Open a perpetual paper position</h2>
         <span>Market</span>
       </div>
       <form onSubmit={submit}>
@@ -125,6 +125,10 @@ export default function BuySell({ symbol }: { symbol: Symbol }) {
               <span>Available cash</span>
               <b>{account.summary ? money(available) : "—"}</b>
             </div>
+            <p className="muted">
+              Perpetual contract · no expiry · simulated funding every 8 hours
+              (1 bp). Longs pay; shorts receive.
+            </p>
             <label htmlFor="margin">Collateral (USD)</label>
             <input
               id="margin"
@@ -199,7 +203,7 @@ export default function BuySell({ symbol }: { symbol: Symbol }) {
         >
           {mutation.busy
             ? "Submitting…"
-            : `Place ${side === "buy" ? "long" : "short"} paper trade`}
+            : `Open ${side === "buy" ? "long" : "short"} perp`}
         </button>
         {mutation.error && (
           <div className="notice error" role="alert">
@@ -235,8 +239,9 @@ export default function BuySell({ symbol }: { symbol: Symbol }) {
         )}
         <p className="ticket-disclosure">
           Virtual funds only. Quotes include a simulated spread. Opening, added
-          collateral, and exits each incur a 0.5% collateral fee. Liquidation
-          checks run every 5 seconds.
+          collateral, and exits each incur a 0.5% collateral fee. Funding uses a
+          fixed educational rate of 0.01% every 8 hours, not an exchange feed.
+          Liquidation checks run every 5 seconds.
         </p>
       </form>
     </aside>

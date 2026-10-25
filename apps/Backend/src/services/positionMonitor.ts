@@ -4,6 +4,7 @@ import { prisma } from "@orbitledger/database";
 import { executableQuote, mutateAccount } from "./accountService";
 import { type Side } from "@orbitledger/shared";
 import { randomUUID } from "node:crypto";
+import { applyDueFunding } from "./perpFunding";
 
 export const riskHealth = {
   lastCompletedAt: 0,
@@ -17,6 +18,7 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 export async function checkCycle() {
   const metrics = { checked: 0, closed: 0, skipped: 0, errors: 0 };
   try {
+    await applyDueFunding();
     const orders = await prisma.activeOrder.findMany();
     for (const order of orders) {
       metrics.checked++;

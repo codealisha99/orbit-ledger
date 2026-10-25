@@ -16,6 +16,8 @@ export interface Position {
   notionalCents: number;
   quantity: number;
   entryFeeCents: number;
+  fundingAccruedCents: number;
+  nextFundingAt: string;
   openPrice: number;
   markPrice: number | null;
   pnlCents: number | null;

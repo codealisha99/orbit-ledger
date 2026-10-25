@@ -95,6 +95,7 @@ model ClosedOrder {
   entryFeeCents Float @default(0)
   exitFeeCents Float @default(0)
   netPnlCents Float @default(0)
+  fundingAccruedCents Float @default(0)
   orderId          String   @id
   userId           String
   asset            String
@@ -171,6 +172,8 @@ model ActiveOrder {
   needsReview Boolean @default(false)
   notionalCents Float
   entryFeeCents Float @default(0)
+  fundingAccruedCents Float @default(0)
+  lastFundingAt DateTime @default(now())
   orderId          String   @id
   userId           String
   asset            String
@@ -195,6 +198,23 @@ model ActiveOrder {
 
   @@index([userId])
   @@map("active_orders")
+}
+
+model PerpFundingPayment {
+  id String @id
+  userId String
+  positionId String
+  asset String
+  side String
+  notionalCents Float
+  rateBps Int
+  amountCents Float
+  markPrice Float
+  appliedAt DateTime @default(now())
+
+  @@index([userId, appliedAt])
+  @@index([positionId, appliedAt])
+  @@map("perp_funding_payments")
 }
 
 // Platform profit state (singleton  always id = 1)

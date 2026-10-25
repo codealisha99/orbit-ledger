@@ -152,6 +152,18 @@ tradeRoutes.get(
   }),
 );
 tradeRoutes.get(
+  "/funding",
+  apiRateLimit,
+  handle(async (req, res) => {
+    const rows = await prisma.perpFundingPayment.findMany({
+      where: { userId: req.userId! },
+      orderBy: { appliedAt: "desc" },
+      take: 100,
+    });
+    res.json({ payments: rows });
+  }),
+);
+tradeRoutes.get(
   "/receipt/:id",
   apiRateLimit,
   handle(async (req, res) => {

@@ -38,7 +38,7 @@ export function positionView(
 ) {
   const quote = PriceStorageMp.get(order.asset as Asset);
   const fresh = !order.needsReview && isFreshQuote(quote, now);
-  const mark = fresh ? (order.type === "buy" ? quote.bid : quote.ask) : null;
+  const mark = fresh ? Math.round((quote.bid + quote.ask) / 2) : null;
   const pnl =
     mark === null
       ? null
@@ -58,6 +58,8 @@ export function positionView(
     effectiveLeverage: order.notionalCents / order.margin,
     markPrice: mark,
     pnlCents: pnl,
+    fundingAccruedCents: order.fundingAccruedCents,
+    nextFundingAt: new Date(order.lastFundingAt.getTime() + 8 * 60 * 60 * 1000),
     stale: !fresh,
     quoteTime: quote?.time ?? null,
   };
@@ -332,7 +334,13 @@ export async function mutateAccount(
               const exitFee = Math.min(feeCents(margin), margin + pnl);
               balance += margin + pnl - exitFee;
               const receiptId = randomUUID();
-              const { createdAt, updatedAt, needsReview, ...fields } = order;
+              const {
+                createdAt,
+                updatedAt,
+                needsReview,
+                lastFundingAt,
+                ...fields
+              } = order;
               const execution = await tx.closedOrder.create({
                 data: {
                   ...fields,
@@ -346,6 +354,10 @@ export async function mutateAccount(
                   entryFeeCents: entryFee,
                   exitFeeCents: exitFee,
                   netPnlCents: pnl - entryFee - exitFee,
+                  fundingAccruedCents:
+                    fraction === 1
+                      ? order.fundingAccruedCents
+                      : splitAmount(order.fundingAccruedCents, fraction * 100),
                   closePrice,
                   pnl,
                   closeReason:
@@ -366,6 +378,9 @@ export async function mutateAccount(
                     addedMargin: order.addedMargin - addedMargin,
                     notionalCents: order.notionalCents - notional,
                     entryFeeCents: order.entryFeeCents - entryFee,
+                    fundingAccruedCents:
+                      order.fundingAccruedCents -
+                      splitAmount(order.fundingAccruedCents, fraction * 100),
                     liquidationPrice: liquidationPrice(
                       order.openPrice,
                       order.margin - margin,
@@ -379,7 +394,13 @@ export async function mutateAccount(
                 receiptId,
                 feeCents: exitFee,
                 pnlCents: pnl,
-                netPnlCents: pnl - entryFee - exitFee,
+                netPnlCents:
+                  pnl -
+                  entryFee -
+                  exitFee -
+                  (fraction === 1
+                    ? order.fundingAccruedCents
+                    : splitAmount(order.fundingAccruedCents, fraction * 100)),
               };
             }
           }
