@@ -21,12 +21,13 @@
   --nt-grid: #1d1d1a;
 
   --nt-text: #eceae5;
-  --nt-muted: #9b988f;
-  --nt-dim: #6f6d64;
+  --nt-muted: #a4a197;
+  --nt-dim: #8f8c83;
 
   --nt-accent: #e0a33e;
   --nt-accent-soft: color-mix(in srgb, #e0a33e 14%, transparent);
   --nt-accent-ink: #171204; /* text on amber fills */
+  --nt-side-ink: #171204; /* text on buy/sell fills */
 
   --nt-buy: #4faa74;
   --nt-sell: #d97b82;
@@ -51,12 +52,13 @@
   --nt-grid: #eae7e1;
 
   --nt-text: #1c1b18;
-  --nt-muted: #6d695f;
-  --nt-dim: #8b877d;
+  --nt-muted: #57544b;
+  --nt-dim: #6a665c;
 
   --nt-accent: #8a5a14;
   --nt-accent-soft: color-mix(in srgb, #c98620 14%, transparent);
   --nt-accent-ink: #221a08;
+  --nt-side-ink: rgb(253 252 250);
 
   --nt-buy: #14724a;
   --nt-sell: #b03a42;
@@ -752,12 +754,12 @@ summary:focus-visible {
 .side-tabs button[aria-pressed="true"]:first-child {
   background: var(--nt-buy);
   border-color: var(--nt-buy);
-  color: var(--nt-accent-ink);
+  color: var(--nt-side-ink);
 }
 .side-tabs button[aria-pressed="true"]:last-child {
   background: var(--nt-sell);
   border-color: var(--nt-sell);
-  color: var(--nt-accent-ink);
+  color: var(--nt-side-ink);
 }
 .side-tabs button[aria-pressed="false"]:first-child:has(
   + button[aria-pressed="true"]
@@ -770,12 +772,12 @@ summary:focus-visible {
 .submit-trade[data-side="buy"] {
   background: var(--nt-buy);
   border-color: var(--nt-buy);
-  color: var(--nt-accent-ink);
+  color: var(--nt-side-ink);
 }
 .submit-trade[data-side="sell"] {
   background: var(--nt-sell);
   border-color: var(--nt-sell);
-  color: var(--nt-accent-ink);
+  color: var(--nt-side-ink);
 }
 .execution-price {
   display: flex;
