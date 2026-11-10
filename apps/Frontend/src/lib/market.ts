@@ -38,6 +38,15 @@ function emit(next: State) {
   state = next;
   listeners.forEach((fn) => fn());
 }
+let flushQueued: ReturnType<typeof setTimeout> | null = null;
+function emitThrottled(next: State) {
+  state = next;
+  if (flushQueued) return;
+  flushQueued = setTimeout(() => {
+    flushQueued = null;
+    listeners.forEach((fn) => fn());
+  }, 60);
+}
 function connect() {
   const ws = new WebSocket(
     process.env.NEXT_PUBLIC_WEBSOCKET_URL || "ws://localhost:8080",
@@ -93,7 +102,7 @@ function connect() {
       const trades = existing.some((t) => t.tradeId === quote.tradeId)
         ? existing
         : [quote, ...existing].slice(0, 100);
-      emit({
+      emitThrottled({
         ...state,
         quotes: { ...state.quotes, [symbol]: quote },
         trades: { ...state.trades, [symbol]: trades },

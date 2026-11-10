@@ -161,8 +161,8 @@ export default function Landing({ signedIn = false }: { signedIn?: boolean }) {
                       x2="0"
                       y2="1"
                     >
-                      <stop offset="0%" stopColor="#578cff" stopOpacity=".25" />
-                      <stop offset="100%" stopColor="#578cff" stopOpacity="0" />
+                      <stop offset="0%" stopColor="var(--nt-accent, #e0a33e)" stopOpacity=".22" />
+                      <stop offset="100%" stopColor="var(--nt-accent, #e0a33e)" stopOpacity="0" />
                     </linearGradient>
                   </defs>
                   <path
@@ -173,11 +173,11 @@ export default function Landing({ signedIn = false }: { signedIn?: boolean }) {
                     className="launch-price-line"
                     d={trace}
                     fill="none"
-                    stroke="#78a4ff"
+                    stroke="var(--nt-accent, #e0a33e)"
                     strokeWidth="2.5"
                     vectorEffect="non-scaling-stroke"
                   />
-                  <circle cx="400" cy="19" r="4" fill="#b9d4ff" />
+                  <circle cx="400" cy="19" r="4" fill="var(--nt-accent, #e0a33e)" />
                 </svg>
                 <span className="launch-chart-note">
                   Example price path · not live data

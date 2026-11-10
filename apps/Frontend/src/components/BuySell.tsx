@@ -198,6 +198,7 @@ export default function BuySell({ symbol }: { symbol: Symbol }) {
         </p>
         <button
           className="primary submit-trade"
+          data-side={side}
           type="submit"
           disabled={!!issue || !account.summary || locked}
         >

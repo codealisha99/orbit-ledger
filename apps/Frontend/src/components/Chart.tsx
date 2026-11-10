@@ -86,23 +86,25 @@ export default function Chart({
   const quote = market.quotes[symbol];
   useEffect(() => {
     if (!host.current) return;
+    const css = getComputedStyle(document.documentElement);
+    const val = (name: string) => css.getPropertyValue(name).trim();
     const c = createChart(host.current, {
       autoSize: true,
       layout: {
-        background: { type: ColorType.Solid, color: "#000000" },
-        textColor: "#9b9ba4",
+        background: { type: ColorType.Solid, color: val("--nt-bg") },
+        textColor: val("--nt-muted"),
         attributionLogo: false,
       },
       grid: {
-        vertLines: { color: "#151519" },
-        horzLines: { color: "#151519" },
+        vertLines: { color: val("--nt-grid") },
+        horzLines: { color: val("--nt-grid") },
       },
-      rightPriceScale: { borderColor: "#242429" },
+      rightPriceScale: { borderColor: val("--nt-border") },
       timeScale: {
         timeVisible: true,
         secondsVisible: false,
         minBarSpacing: 0.01,
-        borderColor: "#242429",
+        borderColor: val("--nt-border"),
       },
       localization: {
         timeFormatter: (time: Time) =>
@@ -115,19 +117,20 @@ export default function Chart({
     });
     chart.current = c;
     candles.current = c.addSeries(CandlestickSeries, {
-      upColor: "#4c94ff",
-      downColor: "#ed6969",
-      wickUpColor: "#4c94ff",
-      wickDownColor: "#ed6969",
+      upColor: val("--nt-buy"),
+      downColor: val("--nt-sell"),
+      wickUpColor: val("--nt-buy"),
+      wickDownColor: val("--nt-sell"),
       borderVisible: false,
       priceFormat: { type: "price", precision: 2, minMove: 0.01 },
     });
     line.current = c.addSeries(LineSeries, {
-      color: "#4c94ff",
+      color: val("--nt-accent"),
       lineWidth: 2,
       visible: false,
     });
     volume.current = c.addSeries(HistogramSeries, {
+      color: val("--nt-dim"),
       priceFormat: { type: "volume" },
       priceScaleId: "volume",
       visible: false,
@@ -145,27 +148,27 @@ export default function Chart({
       );
     });
     const theme = () => {
-      const css = getComputedStyle(document.documentElement);
-      const val = (name: string) => css.getPropertyValue(name).trim();
+      const cs = getComputedStyle(document.documentElement);
+      const tv = (name: string) => cs.getPropertyValue(name).trim();
       candles.current?.applyOptions({
-        upColor: val("--nt-accent"),
-        wickUpColor: val("--nt-accent"),
-        downColor: val("--nt-sell"),
-        wickDownColor: val("--nt-sell"),
+        upColor: tv("--nt-buy"),
+        wickUpColor: tv("--nt-buy"),
+        downColor: tv("--nt-sell"),
+        wickDownColor: tv("--nt-sell"),
       });
-      line.current?.applyOptions({ color: val("--nt-accent") });
-      volume.current?.applyOptions({ color: val("--nt-accent") });
+      line.current?.applyOptions({ color: tv("--nt-accent") });
+      volume.current?.applyOptions({ color: tv("--nt-dim") });
       c.applyOptions({
         layout: {
-          background: { type: ColorType.Solid, color: val("--nt-bg") },
-          textColor: val("--nt-muted"),
+          background: { type: ColorType.Solid, color: tv("--nt-bg") },
+          textColor: tv("--nt-muted"),
         },
         grid: {
-          vertLines: { color: val("--nt-grid") },
-          horzLines: { color: val("--nt-grid") },
+          vertLines: { color: tv("--nt-grid") },
+          horzLines: { color: tv("--nt-grid") },
         },
-        rightPriceScale: { borderColor: val("--nt-border") },
-        timeScale: { borderColor: val("--nt-border") },
+        rightPriceScale: { borderColor: tv("--nt-border") },
+        timeScale: { borderColor: tv("--nt-border") },
       });
     };
     theme();
@@ -285,16 +288,21 @@ export default function Chart({
         (p): p is readonly [number, string] =>
           typeof p[0] === "number" && p[0] > 0,
       )
-      .map(([price, title]) =>
-        series.createPriceLine({
+      .map(([price, title]) => {
+        const cs = getComputedStyle(document.documentElement);
+        const pcolor =
+          title === "Liq"
+            ? cs.getPropertyValue("--nt-sell").trim()
+            : cs.getPropertyValue("--nt-dim").trim();
+        return series.createPriceLine({
           price: price / 10000,
           title,
-          color: title === "Liq" ? "#ed6969" : "#727985",
+          color: pcolor,
           lineWidth: 1,
           lineStyle: 2,
           axisLabelVisible: true,
-        }),
-      );
+        });
+      });
     return () => {
       if (chart.current) lines.forEach((l) => series.removePriceLine(l));
     };

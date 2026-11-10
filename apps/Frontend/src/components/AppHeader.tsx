@@ -75,6 +75,18 @@ export default function AppHeader() {
           </Link>
         </nav>
         <div className="header-account">
+          {account.summary?.equityCents != null && !account.error && (
+            <Link href="/dashboard" className="header-equity">
+              <span>Equity</span>
+              <b>
+                $
+                {(account.summary.equityCents / 100).toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </b>
+            </Link>
+          )}
           <span className="paper-tag">Paper account</span>
           <ThemeToggle />
           <button className="quiet" onClick={logout} disabled={signingOut}>

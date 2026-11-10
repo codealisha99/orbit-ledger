@@ -8,16 +8,19 @@
   margin-bottom: 25px;
 }
 .dashboard-eyebrow {
+  font-family: var(--font-mono);
   font-size: 11px !important;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: var(--nt-accent) !important;
   margin-bottom: 11px !important;
 }
 .dashboard-home .page-heading h1,
 .account-home .page-heading h1 {
-  font-size: 40px;
+  font-size: 38px;
   line-height: 1.15;
-  font-weight: 450;
-  letter-spacing: -1.8px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
 }
 .dashboard-home .page-heading .primary,
 .account-home .quiet {
@@ -44,19 +47,19 @@
   border: 0;
 }
 .dashboard-home .metric:first-child {
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--nt-accent) 13%, transparent),
-    transparent
-  );
+  background: color-mix(in srgb, var(--nt-accent) 5%, transparent);
 }
 .dashboard-home .metric strong {
-  font-size: 32px;
-  letter-spacing: -1.1px;
-  font-weight: 450;
+  font-family: var(--font-mono);
+  font-size: 28px;
+  letter-spacing: -0.02em;
+  font-weight: 500;
 }
 .dashboard-home .metric > span {
-  font-size: 11px;
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--nt-dim);
 }
 .dashboard-home .metric small {
   font-size: 10px;
@@ -76,7 +79,7 @@
 .hub-heading h2 {
   font-size: 20px;
   letter-spacing: -0.5px;
-  font-weight: 450;
+  font-weight: 500;
 }
 .hub-heading p {
   font-size: 11px;
@@ -149,9 +152,10 @@
   margin-top: 20px;
 }
 .market-card-price strong {
+  font-family: var(--font-mono);
   font-size: 26px;
   letter-spacing: -0.9px;
-  font-weight: 450;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 .market-card-price > span {
@@ -229,7 +233,7 @@
 }
 .dashboard-hub-grid .equity-history .empty h3 {
   font-size: 19px;
-  font-weight: 450;
+  font-weight: 500;
   margin: 12px 0;
 }
 .dashboard-hub-grid .equity-history .empty p {
@@ -263,7 +267,7 @@
 }
 .watchlist-empty h3 {
   font-size: 17px;
-  font-weight: 450;
+  font-weight: 500;
   margin: 8px 0;
 }
 .watchlist-empty p {
@@ -412,7 +416,7 @@
 }
 .getting-started h2 {
   font-size: 15px;
-  font-weight: 450;
+  font-weight: 500;
 }
 .getting-started p {
   font-size: 10px;
@@ -457,7 +461,7 @@
 }
 .dashboard-home .performance-total {
   font-size: 38px;
-  font-weight: 450;
+  font-weight: 500;
   letter-spacing: -1.2px;
 }
 .dashboard-home .surface .section-heading h2 {
@@ -501,7 +505,7 @@
 }
 .dialog-heading h2 {
   font-size: 19px;
-  font-weight: 450;
+  font-weight: 500;
 }
 .alert-dialog > .muted {
   line-height: 1.8;
@@ -642,6 +646,7 @@
     padding: 17px 17px 13px;
   }
   .market-card-price strong {
+  font-family: var(--font-mono);
     font-size: 23px;
   }
   .market-card-price > span {
@@ -691,6 +696,7 @@
     margin-top: 15px;
   }
   .market-card-price strong {
+  font-family: var(--font-mono);
     font-size: 23px;
   }
   .market-card-chart {
@@ -822,6 +828,7 @@
     gap: 5px;
   }
   .market-card-price strong {
+  font-family: var(--font-mono);
     font-size: 25px;
   }
   .market-card-chart {
