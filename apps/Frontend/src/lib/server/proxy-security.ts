@@ -1,5 +1,5 @@
 import { isIP } from "node:net";
-import { proxySignature } from "@orbitledger/shared/security";
+import { proxySignature } from "@papership/shared/security";
 export class RequestRejected extends Error {
   constructor(
     public status: number,
@@ -31,9 +31,6 @@ export function signedClientHeaders(request: Request): Record<string, string> {
     "X-PaperShip-Client-IP": ip,
     "X-PaperShip-Client-Time": timestamp,
     "X-PaperShip-Client-Signature": sig,
-    "X-Orbit-Client-IP": ip,
-    "X-Orbit-Client-Time": timestamp,
-    "X-Orbit-Client-Signature": sig,
   };
 }
 export async function limitedJson(

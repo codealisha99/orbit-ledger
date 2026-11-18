@@ -1,7 +1,7 @@
 "use client";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { isFreshQuote, money, type CandleInterval } from "@orbitledger/shared";
+import { isFreshQuote, money, type CandleInterval } from "@papership/shared";
 import AppHeader from "@/components/AppHeader";
 import Chart, {
   defaultInterval,
@@ -55,12 +55,12 @@ function Trading() {
   const style = params.get("style") === "line" ? "line" : "candles";
   useEffect(() => {
     if (!location.search) {
-      const saved = localStorage.getItem("orbit-chart-preferences");
+      const saved = localStorage.getItem("papership-chart-preferences");
       if (saved) router.replace(`/trading?${saved}`, { scroll: false });
     }
   }, [router]);
   useEffect(() => {
-    localStorage.setItem("orbit-chart-preferences", params.toString());
+    localStorage.setItem("papership-chart-preferences", params.toString());
   }, [params]);
   useEffect(() => {
     let active = true;

@@ -24,7 +24,6 @@ export async function GET(
     maxAge: 600,
   };
   response.cookies.set("papership-oauth-verifier", verifier, cookieOpts);
-  response.cookies.set("orbit-oauth-verifier", verifier, cookieOpts);
   response.headers.set("Cache-Control", "private, no-store");
   response.headers.set("Referrer-Policy", "no-referrer");
   return response;

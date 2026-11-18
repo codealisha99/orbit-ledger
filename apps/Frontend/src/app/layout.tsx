@@ -20,12 +20,38 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://PaperShip.today"),
-  title: "Paper Ship — Crypto Paper Trading",
+  metadataBase: new URL("https://papership.today"),
+  title: {
+    default: "Paper Ship — Crypto Paper Trading",
+    template: "%s | Paper Ship",
+  },
   description:
     "Practice crypto trading with virtual funds, clear costs, and a complete trade history on PaperShip.today.",
   alternates: {
-    canonical: "https://PaperShip.today",
+    canonical: "https://papership.today",
+  },
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    apple: [{ url: "/apple-icon.svg", type: "image/svg+xml" }],
+  },
+  manifest: "/manifest.json",
+  openGraph: {
+    title: "Paper Ship — Crypto Paper Trading",
+    description:
+      "Practice crypto trading with virtual funds, clear costs, and a complete trade history.",
+    url: "https://papership.today",
+    siteName: "Paper Ship",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Paper Ship — Crypto Paper Trading",
+    description:
+      "Practice crypto trading with virtual funds, clear costs, and a complete trade history.",
   },
 };
 
@@ -43,7 +69,7 @@ export default async function RootLayout({
           nonce={nonce}
           suppressHydrationWarning
           dangerouslySetInnerHTML={{
-            __html: `try { var theme = localStorage.getItem('papership-theme') || localStorage.getItem('orbitledger-theme'); document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark'; } catch (_) { document.documentElement.dataset.theme = 'dark'; }`,
+            __html: `try { var theme = localStorage.getItem('papership-theme'); document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark'; } catch (_) { document.documentElement.dataset.theme = 'dark'; }`,
           }}
         />
         <Toaster

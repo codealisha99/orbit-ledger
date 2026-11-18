@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "orbit-ledger",
+      "name": "papership",
       "dependencies": {
         "@prisma/client": "^7.10.1",
         "@prisma/client-runtime-utils": "^7.10.1",
@@ -23,11 +23,11 @@
       },
     },
     "apps/Backend": {
-      "name": "@orbitledger/backend",
+      "name": "@papership/backend",
       "version": "0.0.1",
       "dependencies": {
-        "@orbitledger/database": "workspace:*",
-        "@orbitledger/shared": "workspace:*",
+        "@papership/database": "workspace:*",
+        "@papership/shared": "workspace:*",
         "bcrypt": "^6.0.0",
         "cors": "^2.8.6",
         "express": "^5.3.0",
@@ -49,10 +49,10 @@
       },
     },
     "apps/Frontend": {
-      "name": "@orbitledger/frontend",
+      "name": "@papership/frontend",
       "version": "0.0.0",
       "dependencies": {
-        "@orbitledger/shared": "workspace:*",
+        "@papership/shared": "workspace:*",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "lightweight-charts": "^5.2.1",
@@ -79,10 +79,10 @@
       },
     },
     "apps/Price_Poller": {
-      "name": "@orbitledger/price_poller",
+      "name": "@papership/price_poller",
       "dependencies": {
-        "@orbitledger/database": "workspace:*",
-        "@orbitledger/shared": "workspace:*",
+        "@papership/database": "workspace:*",
+        "@papership/shared": "workspace:*",
         "@types/ws": "^8.18.1",
         "kafkajs": "^2.2.4",
         "ws": "^8.22.0",
@@ -95,10 +95,10 @@
       },
     },
     "apps/Websocket": {
-      "name": "@orbitledger/websocket",
+      "name": "@papership/websocket",
       "dependencies": {
-        "@orbitledger/database": "workspace:*",
-        "@orbitledger/shared": "workspace:*",
+        "@papership/database": "workspace:*",
+        "@papership/shared": "workspace:*",
         "dotenv": "^17.2.3",
         "jsonwebtoken": "^9.0.2",
         "redis": "^5.9.0",
@@ -112,7 +112,7 @@
       },
     },
     "packages/database": {
-      "name": "@orbitledger/database",
+      "name": "@papership/database",
       "dependencies": {
         "@prisma/adapter-pg": "^7.6.0",
         "@prisma/client": "^7.6.0",
@@ -146,7 +146,7 @@
       },
     },
     "packages/shared": {
-      "name": "@orbitledger/shared",
+      "name": "@papership/shared",
       "dependencies": {
         "jsonwebtoken": "^9.0.3",
       },
@@ -311,17 +311,17 @@
 
     "@nolyfill/is-core-module": ["@nolyfill/is-core-module@1.0.39", "", {}, "sha512-nn5ozdjYQpUCZlWGuxcJY/KpxkWQs4DcbMCmKojjyrYDEAGy4Ce19NN4v5MduafTwJlbKc99UA8YhSVqq9yPZA=="],
 
-    "@orbitledger/backend": ["@orbitledger/backend@workspace:apps/Backend"],
+    "@papership/backend": ["@papership/backend@workspace:apps/Backend"],
 
-    "@orbitledger/database": ["@orbitledger/database@workspace:packages/database"],
+    "@papership/database": ["@papership/database@workspace:packages/database"],
 
-    "@orbitledger/frontend": ["@orbitledger/frontend@workspace:apps/Frontend"],
+    "@papership/frontend": ["@papership/frontend@workspace:apps/Frontend"],
 
-    "@orbitledger/price_poller": ["@orbitledger/price_poller@workspace:apps/Price_Poller"],
+    "@papership/price_poller": ["@papership/price_poller@workspace:apps/Price_Poller"],
 
-    "@orbitledger/shared": ["@orbitledger/shared@workspace:packages/shared"],
+    "@papership/shared": ["@papership/shared@workspace:packages/shared"],
 
-    "@orbitledger/websocket": ["@orbitledger/websocket@workspace:apps/Websocket"],
+    "@papership/websocket": ["@papership/websocket@workspace:apps/Websocket"],
 
     "@prisma/adapter-pg": ["@prisma/adapter-pg@7.10.1", "", { "dependencies": { "@prisma/driver-adapter-utils": "7.10.1", "@types/pg": "^8.16.0", "pg": "^8.16.3", "postgres-array": "3.0.4" } }, "sha512-EP9ruPYHjKP80WZlb5qVaEXKgZjJieBFjAxcBtQnDAHD6+16UN4keVmBh6L/RUpuDQT2FQRbvKNgq5d4Ix+IkQ=="],
 
@@ -407,7 +407,7 @@
 
     "@types/body-parser": ["@types/body-parser@1.19.6", "", { "dependencies": { "@types/connect": "*", "@types/node": "*" } }, "sha512-HLFeCYgz89uk22N5Qg3dvGvsv46B8GLvKKo1zKG4NybA8U2DiEO3w9lqGg29t/tfLRJpJ6iQxnVw4OnB7MoM9g=="],
 
-    "@types/bun": ["@types/bun@1.4.3", "", { "dependencies": { "bun-types": "1.4.3" } }, "sha512-N67Pqy8JXbAY/j0tNraS3V5mubGvc6rrrNDmDCtZLlFzccbUJPDb0tvgUBC5q4m8ybkP93Jcn1QB+RYQ6PvBhw=="],
+    "@types/bun": ["@types/bun@1.4.4", "", { "dependencies": { "bun-types": "1.4.4" } }, "sha512-9wkRDXUXK124pEnAutE6n/l18j+i9GC5IAHK8TmX/2nlySETmky0OU6yL5U8pW1AoKh++AN9auDCr647BfurjQ=="],
 
     "@types/connect": ["@types/connect@3.4.38", "", { "dependencies": { "@types/node": "*" } }, "sha512-K6uROf1LD88uDQqJCktA4yzL1YYAK6NgfsI0v/mTgyPKWsX1CnJ0XPSDhViejru1GcRkLWb8RlzFYJRqGUbaug=="],
 
@@ -1473,11 +1473,11 @@
 
     "@next/eslint-plugin-next/fast-glob": ["fast-glob@3.3.1", "", { "dependencies": { "@nodelib/fs.stat": "^2.0.2", "@nodelib/fs.walk": "^1.2.3", "glob-parent": "^5.1.2", "merge2": "^1.3.0", "micromatch": "^4.0.4" } }, "sha512-kNFPyjhh5cKjrUltxs+wFx+ZkbRaxxmZ+X0ZU31SOsxCEtP9VPgtq2teZw1DebupL5GmDaNQ6yKMMVcM41iqDg=="],
 
-    "@orbitledger/backend/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
+    "@papership/backend/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
-    "@orbitledger/frontend/typescript": ["typescript@5.8.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-p1diW6TqL9L07nNxvRMM7hMMw4c5XOo/1ibL4aAIGmSAt9slTE1Xgw5KWuof2uTOvCg9BY7ZRi+GaF+7sfgPeQ=="],
+    "@papership/frontend/typescript": ["typescript@5.8.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-p1diW6TqL9L07nNxvRMM7hMMw4c5XOo/1ibL4aAIGmSAt9slTE1Xgw5KWuof2uTOvCg9BY7ZRi+GaF+7sfgPeQ=="],
 
-    "@orbitledger/websocket/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
+    "@papership/websocket/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
     "@prisma/engines/@prisma/get-platform": ["@prisma/get-platform@7.10.1", "", { "dependencies": { "@prisma/debug": "7.10.1" } }, "sha512-iVnghHne5vcaobBjPVCMEjh5r/1UCj394EIGTUclasFRatpR/MQwcM2veLv5kgoFSyYP54nch/lNFCQRYcDxvg=="],
 
@@ -1488,6 +1488,8 @@
     "@prisma/streams-local/ajv": ["ajv@8.20.0", "", { "dependencies": { "fast-deep-equal": "^3.1.3", "fast-uri": "^3.0.1", "json-schema-traverse": "^1.0.0", "require-from-string": "^2.0.2" } }, "sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA=="],
 
     "@repo/eslint-config/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
+
+    "@types/bun/bun-types": ["bun-types@1.4.4", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-yjrJh5oGX7mMPKGd19YXyIjmEuj4G4zNC30bs7PM9Az7NQ3ndF3j6hbeRdvJTRQEhJ/FYQwW0a2moweEi2hMxQ=="],
 
     "@typescript-eslint/eslint-plugin/ignore": ["ignore@7.0.12", "", {}, "sha512-/8UvqAPU9DGTI9k4mxtf49U37Isfwr8Uts96+SBHIkFxPJnHS0Ew4f00sM4Scd8V8EjM0jUNtVDdv1kPdt35lg=="],
 

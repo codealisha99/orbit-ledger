@@ -2,8 +2,8 @@ import {
   bucketStart,
   INTERVAL_SECONDS,
   toInternalPrice,
-} from "@orbitledger/shared";
-import { prisma } from "@orbitledger/database";
+} from "@papership/shared";
+import { prisma } from "@papership/database";
 
 const BINANCE_KLINES_URL = "https://data-api.binance.vision/api/v3/klines";
 const SYMBOLS = ["BTC", "ETH", "SOL"] as const;

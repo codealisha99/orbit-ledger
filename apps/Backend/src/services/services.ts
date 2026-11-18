@@ -1,9 +1,9 @@
-import { prisma } from "@orbitledger/database";
+import { prisma } from "@papership/database";
 import {
   bucketStart,
   INTERVAL_SECONDS,
   fromInternalPrice,
-} from "@orbitledger/shared";
+} from "@papership/shared";
 import type { TimeDurationCandel, Candle, ValidSymbol } from "../types";
 const SQL_INTERVAL = {
   "1m": "1 minute",

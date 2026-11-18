@@ -1,5 +1,5 @@
 "use client";
-import { pnlCents, signedMoney } from "@orbitledger/shared";
+import { pnlCents, signedMoney } from "@papership/shared";
 export interface ProtectionValues {
   tp: string;
   sl: string;

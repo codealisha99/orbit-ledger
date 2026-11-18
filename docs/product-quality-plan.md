@@ -1,4 +1,4 @@
-# OrbitLedger: trading and dashboard improvement plan
+# Paper Ship: trading and dashboard improvement plan
 
 Review date: 18 October 2026
 Code baseline: `93d98bc`
@@ -59,7 +59,7 @@ Additional financial requirements: record entry/exit fees explicitly, distinguis
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────┐
-│ OrbitLedger   Trade   Dashboard       Paper account   Status   Settings │
+│ Paper Ship   Trade   Dashboard       Paper account   Status   Settings │
 ├─────────────────────────────────────────────────────────────────────────┤
 │ BTC/USDT ▾    Last price    24h change    High / Low    Volume           │
 ├──────────────────────────────────────────────┬──────────────────────────┤
@@ -84,7 +84,7 @@ Use a stable ticket width of roughly 320–360px on wide screens. Give the chart
 
 | Existing element | Proposed change | Acceptance |
 |---|---|---|
-| Logo and repeated navigation | One shared application header; consistent OrbitLedger mark; persistent Trade/Dashboard links. | Moving between pages preserves market preferences and visual orientation. |
+| Logo and repeated navigation | One shared application header; consistent Paper Ship mark; persistent Trade/Dashboard links. | Moving between pages preserves market preferences and visual orientation. |
 | Three market tiles | One selected-market heading with a compact BTC/ETH/SOL selector; optional compact watchlist later. | Market, quote, chart, and ticket switch together; stale responses cannot overwrite the selected market. |
 | Percentage badges | Real 24h change with an explicit label; show unavailable state until provided. | Refreshing the browser does not reset the market statistic to zero. |
 | Interval buttons in global header | Move beside the chart and label “Candle interval.” Keep common choices visible, overflow in a menu. | Users distinguish “one candle per week” from “show the last week.” |

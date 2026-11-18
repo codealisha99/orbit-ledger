@@ -1,4 +1,4 @@
-import { Asset, SUPPORTED_ASSETS } from "@orbitledger/shared";
+import { Asset, SUPPORTED_ASSETS } from "@papership/shared";
 import { randomUUID } from "crypto";
 import { WebSocket } from "ws";
 import type {

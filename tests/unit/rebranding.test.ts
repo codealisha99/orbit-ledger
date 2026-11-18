@@ -4,18 +4,17 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 describe("Paper Ship Rebranding Audit", () => {
-  test("Metadata specifies Paper Ship and canonical domain PaperShip.today", () => {
+  test("Metadata specifies Paper Ship and canonical domain papership.today", () => {
     const layout = readFileSync(join(process.cwd(), "apps/Frontend/src/app/layout.tsx"), "utf8");
-    expect(layout).toContain('title: "Paper Ship — Crypto Paper Trading"');
-    expect(layout).toContain('canonical: "https://PaperShip.today"');
-    expect(layout).toContain('metadataBase: new URL("https://PaperShip.today")');
+    expect(layout).toContain('default: "Paper Ship — Crypto Paper Trading"');
+    expect(layout).toContain('canonical: "https://papership.today"');
+    expect(layout).toContain('metadataBase: new URL("https://papership.today")');
     expect(layout).toContain("papership-theme");
   });
 
-  test("Security JWT Issuer is papership with backwards-compatible verification", () => {
+  test("Security JWT Issuer is papership", () => {
     expect(TOKEN_ISSUER).toBe("papership");
-    expect(ALLOWED_ISSUERS).toContain("papership");
-    expect(ALLOWED_ISSUERS).toContain("orbitledger");
+    expect(ALLOWED_ISSUERS).toEqual(["papership"]);
     expect(SESSION_AUDIENCE).toBe("papership:api");
     expect(WS_AUDIENCE).toBe("papership:ws");
   });
@@ -35,7 +34,7 @@ describe("Paper Ship Rebranding Audit", () => {
   test("Frontend UI components display Paper Ship brand name", () => {
     const header = readFileSync(join(process.cwd(), "apps/Frontend/src/components/AppHeader.tsx"), "utf8");
     expect(header).toContain("Paper Ship");
-    expect(header).toContain('aria-label="Paper Ship Dashboard"');
+    expect(header).toContain('aria-label="Paper Ship home"');
 
     const landing = readFileSync(join(process.cwd(), "apps/Frontend/src/components/Landing.tsx"), "utf8");
     expect(landing).toContain("Paper Ship");

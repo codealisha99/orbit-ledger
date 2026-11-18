@@ -12,7 +12,7 @@ import {
   type Time,
 } from "lightweight-charts";
 import { useEffect, useRef, useState } from "react";
-import { bucketStart, type CandleInterval } from "@orbitledger/shared";
+import { bucketStart, type CandleInterval } from "@papership/shared";
 import { api } from "@/lib/client";
 import { useMarket, type Symbol } from "@/lib/market";
 import type { Position } from "@/lib/account";

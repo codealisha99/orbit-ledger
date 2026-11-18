@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { prisma } from "@orbitledger/database";
-import { isFreshQuote, liquidationPrice } from "@orbitledger/shared";
+import { prisma } from "@papership/database";
+import { isFreshQuote, liquidationPrice } from "@papership/shared";
 import { PriceStorageMp } from "../data/store";
 
 // Educational simulation: longs pay 1 bp every 8 hours; shorts receive it.

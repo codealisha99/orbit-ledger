@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ThemeToggle from "./ThemeToggle";
+import { PaperShipIcon } from "./PaperShipLogo";
 import {
   useAccount,
   useAccountMutation,
@@ -28,7 +29,6 @@ export default function AppHeader() {
       await api("session/logout", { method: "POST", body: "{}" });
       clearAccount();
       sessionStorage.removeItem("papership-pending");
-      sessionStorage.removeItem("orbit-pending");
       localStorage.removeItem("token");
       localStorage.removeItem("userID");
       router.replace("/signin");
@@ -45,12 +45,12 @@ export default function AppHeader() {
     <>
       <header className="app-header">
         <Link
-          href="/dashboard"
+          href="/"
           className="brand"
-          aria-label="Paper Ship Dashboard"
+          aria-label="Paper Ship home"
         >
           <span className="brand-mark" aria-hidden="true">
-            P
+            <PaperShipIcon size={18} />
           </span>
           Paper Ship
         </Link>

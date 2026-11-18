@@ -2,9 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 export async function hasSession() {
   const cookieStore = await cookies();
-  const token =
-    cookieStore.get("papership-session")?.value ||
-    cookieStore.get("orbit-session")?.value;
+  const token = cookieStore.get("papership-session")?.value;
   if (!token) return false;
   try {
     const base =

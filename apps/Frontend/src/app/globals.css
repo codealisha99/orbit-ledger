@@ -415,15 +415,16 @@ summary:focus-visible {
   text-decoration: none;
 }
 .brand-mark {
-  display: grid;
-  place-items: center;
-  width: 27px;
-  height: 27px;
-  border: 1px solid var(--nt-accent);
-  border-radius: 50%;
-  font-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--nt-accent) 40%, var(--nt-border));
+  background: color-mix(in srgb, var(--nt-accent) 10%, transparent);
   color: var(--nt-accent);
-  box-shadow: inset 0 0 0 2.5px var(--nt-bg);
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
 
 .app-header nav {

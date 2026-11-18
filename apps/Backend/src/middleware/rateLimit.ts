@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { verifiedProxyIp } from "@orbitledger/shared/security";
+import { verifiedProxyIp } from "@papership/shared/security";
 import { verifyToken } from "../utils/jwt";
 import { createClient } from "redis";
 import { ipKeyGenerator, rateLimit } from "express-rate-limit";
@@ -52,12 +52,9 @@ export async function closeRateLimitStore(): Promise<void> {
 
 function ipKey(req: Request) {
   const forwarded = verifiedProxyIp({
-    ip: req.get("X-PaperShip-Client-IP") || req.get("X-Orbit-Client-IP"),
-    timestamp:
-      req.get("X-PaperShip-Client-Time") || req.get("X-Orbit-Client-Time"),
-    signature:
-      req.get("X-PaperShip-Client-Signature") ||
-      req.get("X-Orbit-Client-Signature"),
+    ip: req.get("X-PaperShip-Client-IP"),
+    timestamp: req.get("X-PaperShip-Client-Time"),
+    signature: req.get("X-PaperShip-Client-Signature"),
   });
   return ipKeyGenerator(
     forwarded || req.ip || req.socket.remoteAddress || "unknown",
@@ -94,7 +91,7 @@ function limiter(prefix: string, windowMs: number, max: number, error: string) {
     ...(redisClient
       ? {
           store: new RedisStore({
-            prefix: `orbitledger:ratelimit:${prefix}:`,
+            prefix: `papership:ratelimit:${prefix}:`,
             sendCommand: async (...args: string[]) => {
               await ensureRateLimitRedisConnected();
               return redisClient.sendCommand(args);

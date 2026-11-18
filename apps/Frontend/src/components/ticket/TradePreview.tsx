@@ -1,4 +1,4 @@
-import { money, quantity } from "@orbitledger/shared";
+import { money, quantity } from "@papership/shared";
 export default function TradePreview({
   margin,
   fee,

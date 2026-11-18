@@ -81,9 +81,6 @@ function connect() {
         window.dispatchEvent(
           new CustomEvent("papership-account-event", { detail: message.data }),
         );
-        window.dispatchEvent(
-          new CustomEvent("orbit-account-event", { detail: message.data }),
-        );
         return;
       }
       if (message.type !== "PRICE_UPDATE") return;

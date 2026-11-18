@@ -1,5 +1,5 @@
 {
-  "name": "@orbitledger/frontend",
+  "name": "@papership/frontend",
   "private": true,
   "version": "0.0.0",
   "scripts": {
@@ -20,7 +20,7 @@
     "react-hot-toast": "^2.6.1",
     "react-icons": "^5.7.0",
     "tailwind-merge": "^3.7.0",
-    "@orbitledger/shared": "workspace:*"
+    "@papership/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

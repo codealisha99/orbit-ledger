@@ -1,9 +1,9 @@
 import "../../../packages/database/src/env";
-import { securitySecret } from "@orbitledger/shared/security";
+import { securitySecret } from "@papership/shared/security";
 import { DomainError } from "./services/accountService";
 import { ZodError } from "zod";
-import { prisma } from "@orbitledger/database";
-import { isFreshQuote, SUPPORTED_ASSETS } from "@orbitledger/shared";
+import { prisma } from "@papership/database";
+import { isFreshQuote, SUPPORTED_ASSETS } from "@papership/shared";
 import { PriceStorageMp } from "./data/store";
 import express from "express";
 import type { Express, NextFunction, Request, Response } from "express";

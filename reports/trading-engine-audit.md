@@ -1,7 +1,7 @@
-# Trading Engine Audit Report — Orbit Ledger
+# Trading Engine Audit Report — Paper Ship
 
 ## 1. Engine Classification
-Orbit Ledger implements a **deterministic synthetic CFD execution engine** ([apps/Backend/src/services/accountService.ts](file:///Users/alisha/Desktop/orbit-ledger/apps/Backend/src/services/accountService.ts)). Orders are filled immediately against synthetic quotes generated from live Binance trades with a 50 bps half-spread.
+Paper Ship implements a **deterministic synthetic CFD execution engine** ([apps/Backend/src/services/accountService.ts](file:///Users/alisha/Desktop/papership/apps/Backend/src/services/accountService.ts)). Orders are filled immediately against synthetic quotes generated from live Binance trades with a 50 bps half-spread.
 
 ---
 
@@ -75,7 +75,7 @@ Test conducted against reference numbers:
   $$\text{Net PnL} = 100,000 - 500 - 500 = +99,000 \text{ cents } (\$990.00)$$
   $$\text{Balance Return} = 100,000 + 100,000 - 500 = 199,500 \text{ cents } (\$1,995.00)$$
 
-*Automated Test Result:* Validated in [tests/financial-invariants/accounting.test.ts](file:///Users/alisha/Desktop/orbit-ledger/tests/financial-invariants/accounting.test.ts) with 100% mathematical precision.
+*Automated Test Result:* Validated in [tests/financial-invariants/accounting.test.ts](file:///Users/alisha/Desktop/papership/tests/financial-invariants/accounting.test.ts) with 100% mathematical precision.
 
 ---
 

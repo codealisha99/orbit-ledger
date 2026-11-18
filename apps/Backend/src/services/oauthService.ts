@@ -1,7 +1,7 @@
-import { prisma } from "@orbitledger/database";
+import { prisma } from "@papership/database";
 import { v4 as uuidv4 } from "uuid";
 import { INITIAL_BALANCE_CENTS, StoreData, CreateUser } from "../data/store";
-import type { Asset } from "@orbitledger/shared";
+import type { Asset } from "@papership/shared";
 
 export interface OAuthProfile {
   provider: "google" | "github";

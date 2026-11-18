@@ -1,11 +1,11 @@
 import { createServer } from "node:http";
 import { WebSocketServer, WebSocket, RawData } from "ws";
 import { createClient, RedisClientType } from "redis";
-import { SUPPORTED_ASSETS, type Asset } from "@orbitledger/shared";
+import { SUPPORTED_ASSETS, type Asset } from "@papership/shared";
 import { SubscriptionManager } from "./subscription-manager";
 import type { ClientMessage, ServerMessage, PriceUpdate } from "./types";
-import { prisma } from "@orbitledger/database";
-import { securitySecret } from "@orbitledger/shared/security";
+import { prisma } from "@papership/database";
+import { securitySecret } from "@papership/shared/security";
 import { Verifytokenws } from "./utils/wsjwt";
 
 let orderRedis: RedisClientType = createClient({
@@ -46,7 +46,7 @@ const allowedOrigins = new Set(
   (
     process.env.CORS_ORIGINS ||
     process.env.FRONTEND_URL ||
-    "http://localhost:3000,https://orbit-ledger-web.vercel.app"
+    "http://localhost:3000,https://papership.today,https://www.papership.today"
   )
     .split(",")
     .map((value) => value.trim()),

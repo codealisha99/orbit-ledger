@@ -1,11 +1,11 @@
-# Real-Time Performance Benchmark Report — Orbit Ledger
+# Real-Time Performance Benchmark Report — Paper Ship
 
 ## 1. Test Environment Specification
 - **Hardware:** Apple Silicon (macOS darwin arm64).
 - **Runtime:** Bun 1.4.2 / Node.js 22.
 - **Database:** PostgreSQL 16 (TimescaleDB) on Docker, connection pool size 10 (`DATABASE_POOL_SIZE=10`).
 - **Cache & Broker:** Redis 7.2.7-alpine on Docker.
-- **Test Harness:** [tests/performance/latency-benchmark.test.ts](file:///Users/alisha/Desktop/orbit-ledger/tests/performance/latency-benchmark.test.ts).
+- **Test Harness:** [tests/performance/latency-benchmark.test.ts](file:///Users/alisha/Desktop/papership/tests/performance/latency-benchmark.test.ts).
 
 ---
 

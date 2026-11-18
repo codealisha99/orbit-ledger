@@ -11,7 +11,7 @@ The production Vercel frontend had advanced to the new account/market contracts 
 - The frontend proxy now checks the API contract before forwarding requests, including signup. A mismatched release returns a recoverable 503, preserves existing sessions, and cannot silently create an account against an old API. Checks are deduplicated/cached for 15 seconds. Failed account polling backs off to 30 seconds instead of repeatedly requesting broken routes.
 - Added automated compatibility tests for old/non-JSON/failed health responses, trailing slash normalization, and concurrent compatibility checks. Authentication messages now clearly request sign-in instead of exposing internal wording.
 
-The database backup is stored outside the repository with restricted permissions under `~/.local/state/orbitledger/recovery/`. It contains private account data and must never be committed.
+The database backup is stored outside the repository with restricted permissions under `~/.local/state/papership/recovery/`. It contains private account data and must never be committed.
 
 ## Future releases
 
@@ -20,7 +20,7 @@ A Git push alone does **not** deploy the Railway services in this project. Deplo
 Run the read-only routing/readiness checks after all services are updated:
 
 ```sh
-bun scripts/verify-release.ts https://orbit-ledger-web.vercel.app https://backend-production-fd159.up.railway.app https://websocket-production-e7ca.up.railway.app
+bun scripts/verify-release.ts https://papership.today https://backend-production-fd159.up.railway.app https://websocket-production-e7ca.up.railway.app
 ```
 
 These checks complement an actual authenticated signup/signin browser journey; they do not establish full production load, provider OAuth, or historical-data recovery claims. The wider release gates and remaining dependency audit findings still apply; see [the release runbook](release-runbook.md).

@@ -1,6 +1,6 @@
 # Pre-launch security review — 19 October 2026
 
-Scope: OrbitLedger's password/OAuth authentication, browser API bridge, session cookies/JWTs, private WebSocket delivery, financial authorization, database migration, dependency lockfile, tracked secrets, and CI. This is a repository and functional security review, not an independent penetration test or a guarantee against every vulnerability. Production account/order data was not modified as a test.
+Scope: Paper Ship's password/OAuth authentication, browser API bridge, session cookies/JWTs, private WebSocket delivery, financial authorization, database migration, dependency lockfile, tracked secrets, and CI. This is a repository and functional security review, not an independent penetration test or a guarantee against every vulnerability. Production account/order data was not modified as a test.
 
 ## Findings and fixes
 

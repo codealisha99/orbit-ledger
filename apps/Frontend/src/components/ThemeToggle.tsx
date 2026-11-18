@@ -9,9 +9,7 @@ export default function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>("dark");
 
   useEffect(() => {
-    const saved =
-      localStorage.getItem("papership-theme") ||
-      localStorage.getItem("orbitledger-theme");
+    const saved = localStorage.getItem("papership-theme");
     const initial: Theme =
       saved === "light" || saved === "dark" ? saved : "dark";
     document.documentElement.dataset.theme = initial;

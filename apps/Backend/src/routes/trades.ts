@@ -5,7 +5,7 @@ import {
   type NextFunction,
 } from "express";
 import { z } from "zod";
-import { prisma } from "@orbitledger/database";
+import { prisma } from "@papership/database";
 import { authMiddleware } from "../middleware/auth";
 import {
   apiRateLimit,

@@ -1,6 +1,6 @@
-import { prisma } from "@orbitledger/database";
+import { prisma } from "@papership/database";
 import { StoreData, orderStorageMap, emailToUserId } from "../data/store";
-import type { Asset } from "@orbitledger/shared";
+import type { Asset } from "@papership/shared";
 
 export async function restoreState() {
   try {

@@ -6,6 +6,7 @@ import { api, signInDestination } from "@/lib/client";
 import { clearAccount } from "@/lib/account";
 import OAuthButtons from "./OAuthButtons";
 import ThemeToggle from "./ThemeToggle";
+import { PaperShipIcon } from "./PaperShipLogo";
 export default function AuthForm({ signup = false }: { signup?: boolean }) {
   const router = useRouter();
   const [next, setNext] = useState("/dashboard");
@@ -49,8 +50,11 @@ export default function AuthForm({ signup = false }: { signup?: boolean }) {
         <ThemeToggle />
       </div>
       <div className="auth-card">
-        <Link href="/" className="brand">
-          <span className="brand-mark">P</span>Paper Ship
+        <Link href="/" className="brand" aria-label="Paper Ship home">
+          <span className="brand-mark" aria-hidden="true">
+            <PaperShipIcon size={20} />
+          </span>
+          Paper Ship
         </Link>
         <h1>{signup ? "Start your paper account" : "Welcome back"}</h1>
         <p>

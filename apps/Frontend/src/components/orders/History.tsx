@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
-import { money, signedMoney } from "@orbitledger/shared";
+import { money, signedMoney } from "@papership/shared";
 import { useAccount, type Execution } from "@/lib/account";
 import { api } from "@/lib/client";
 import { price, date } from "./format";
@@ -56,14 +56,14 @@ export default function History({
     try {
       setFilters({
         ...defaults,
-        ...JSON.parse(localStorage.getItem("orbit-history-filters") || "{}"),
+        ...JSON.parse(localStorage.getItem("papership-history-filters") || "{}"),
       });
     } catch {}
     setReady(true);
   }, []);
   useEffect(() => {
     if (!ready) return;
-    localStorage.setItem("orbit-history-filters", JSON.stringify(filters));
+    localStorage.setItem("papership-history-filters", JSON.stringify(filters));
     const abort = new AbortController();
     const timer = setTimeout(() => {
       setLoading(true);

@@ -1,7 +1,7 @@
-# Architecture Audit Report — Orbit Ledger
+# Architecture Audit Report — Paper Ship
 
 ## 1. Executive Architecture Summary
-Orbit Ledger is architected as a **hybrid modular service system** governed within a Turborepo monorepo running on Bun and Node.js. It separates operational concerns across:
+Paper Ship is architected as a **hybrid modular service system** governed within a Turborepo monorepo running on Bun and Node.js. It separates operational concerns across:
 1. **Ingestion & Spooling Service (`apps/Price_Poller`):** Autonomous daemon consuming Binance WebSocket `aggTrade` events, spooling to local disk via SQLite WAL mode, publishing synthetic CFD quotes (+50 bps spread) to Redis Pub/Sub, and batch-inserting trades into PostgreSQL/TimescaleDB.
 2. **Real-time Gateway Service (`apps/Websocket`):** Stateful gateway managing public price subscriptions and authenticated private client order push notifications.
 3. **Transactional Core (`apps/Backend`):** Express 5 REST API handling authentication, account state mutations, risk watchdog checks (5-second intervals), perpetual funding calculations (8-hour intervals), and historical candle synchronization.
@@ -42,11 +42,11 @@ apps/Price_Poller (binance.ts)
 ### 3.2 Transactional Order Flow
 ```
 User Browser (BuySell.tsx)
-   │ HTTP POST /api/bridge/trade/open (Cookie: orbit-session)
+   │ HTTP POST /api/bridge/trade/open (Cookie: papership-session)
    ▼
 Next.js BFF Bridge (route.ts)
    │ Verify Origin === nextUrl.origin
-   │ Extract JWT from orbit-session cookie
+   │ Extract JWT from papership-session cookie
    │ Generate HMAC signature: SHA256(secret, v1\ntimestamp\nip)
    ▼
 Express Backend (/api/v2/trade/open)
@@ -73,7 +73,7 @@ WebSocket Gateway (websocket-server.ts)
    │ Pushes ACCOUNT_EVENT frame to user's active WebSocket connection
    ▼
 Browser (useAccount hook)
-   │ Dispatches window event 'orbit-account-event' -> Triggers refreshAccount()
+   │ Dispatches window event 'papership-account-event' -> Triggers refreshAccount()
 ```
 
 ---

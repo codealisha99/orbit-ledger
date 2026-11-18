@@ -1,7 +1,7 @@
-# Fault Tolerance and Recovery Testing Report — Orbit Ledger
+# Fault Tolerance and Recovery Testing Report — Paper Ship
 
 ## 1. Fault Tolerance Architecture
-Orbit Ledger implements multiple defensive layers to isolate external failures and recover from system restarts:
+Paper Ship implements multiple defensive layers to isolate external failures and recover from system restarts:
 1. **Crash-Resilient Ingest Spooling:** `Price_Poller` logs raw trades into an embedded SQLite database (`.data/market-spool.sqlite`) operating in Write-Ahead Log (WAL) mode with `PRAGMA synchronous = FULL`. If PostgreSQL or Kafka is unreachable, up to 250,000 trades remain buffered on disk.
 2. **Transactional Outbox Decoupling:** Domain events are committed to `AccountEvent` in PostgreSQL before Redis publication. If Redis is down, events remain queued with `deliveredAt: null` for automatic replay upon reconnection.
 3. **Stale Quote Protection Gate:** Financial mutations verify `isFreshQuote(quote)`. If quotes are missing or $> 30\text{ s}$ old, mutations and liquidations are blocked.

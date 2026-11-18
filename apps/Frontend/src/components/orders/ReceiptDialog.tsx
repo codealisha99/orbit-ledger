@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
-import { money, signedMoney } from "@orbitledger/shared";
+import { money, signedMoney } from "@papership/shared";
 import type { Position, Execution, AccountEvent } from "@/lib/account";
 import { price, date } from "./format";
 export interface Receipt {

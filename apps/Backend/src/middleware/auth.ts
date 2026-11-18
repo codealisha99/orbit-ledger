@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { prisma } from "@orbitledger/database";
+import { prisma } from "@papership/database";
 import { verifyToken } from "../utils/jwt";
 declare global {
   namespace Express {

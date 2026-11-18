@@ -15,6 +15,7 @@ import {
   Play,
   ShieldCheck,
 } from "lucide-react";
+import { PaperShipIcon } from "./PaperShipLogo";
 
 const trace =
   "M0 174 L20 169 L32 178 L48 151 L62 158 L79 142 L95 150 L111 119 L126 130 L142 110 L157 122 L175 85 L191 101 L206 80 L220 94 L238 62 L253 70 L268 45 L285 56 L300 31 L319 40 L337 21 L355 30 L377 9 L400 19";
@@ -55,7 +56,10 @@ export default function Landing({ signedIn = false }: { signedIn?: boolean }) {
       </a>
       <header className="launch-nav">
         <Link href="/" className="brand" aria-label="Paper Ship home">
-          <span className="brand-mark">P</span>Paper Ship
+          <span className="brand-mark" aria-hidden="true">
+            <PaperShipIcon size={20} />
+          </span>
+          Paper Ship
         </Link>
         <nav aria-label="Main navigation">
           <a href="#workspace">The workspace</a>
@@ -80,7 +84,7 @@ export default function Landing({ signedIn = false }: { signedIn?: boolean }) {
       </header>
       <main id="main">
         <section className="launch-hero">
-          <div className="launch-orbit" aria-hidden="true">
+          <div className="launch-helm" aria-hidden="true">
             <i />
             <i />
             <i />
@@ -352,10 +356,10 @@ export default function Landing({ signedIn = false }: { signedIn?: boolean }) {
                 <strong>perspective.</strong>
               </span>
             </div>
-            <div className="launch-orbit-label one">Collateral</div>
-            <div className="launch-orbit-label two">Exposure</div>
-            <div className="launch-orbit-label three">Costs</div>
-            <div className="launch-orbit-label four">Outcome</div>
+            <div className="launch-cycle-label one">Collateral</div>
+            <div className="launch-cycle-label two">Exposure</div>
+            <div className="launch-cycle-label three">Costs</div>
+            <div className="launch-cycle-label four">Outcome</div>
           </div>
           <div>
             <p className="launch-kicker">Confidence starts with clarity</p>
@@ -420,7 +424,7 @@ export default function Landing({ signedIn = false }: { signedIn?: boolean }) {
           </div>
         </section>
         <section className="launch-final">
-          <div className="launch-final-orbit" aria-hidden="true" />
+          <div className="launch-final-helm" aria-hidden="true" />
           <p>Your next chapter starts with practice.</p>
           <h2>
             The market keeps moving.
@@ -439,8 +443,11 @@ export default function Landing({ signedIn = false }: { signedIn?: boolean }) {
       </main>
       <footer className="launch-footer">
         <div>
-          <Link href="/" className="brand">
-            <span className="brand-mark">P</span>Paper Ship
+          <Link href="/" className="brand" aria-label="Paper Ship home">
+            <span className="brand-mark" aria-hidden="true">
+              <PaperShipIcon size={20} />
+            </span>
+            Paper Ship
           </Link>
           <p>
             A little more understanding.

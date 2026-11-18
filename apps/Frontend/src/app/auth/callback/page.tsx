@@ -24,8 +24,8 @@ export default function Callback() {
     })
       .then(() => {
         clearAccount();
-        const next = sessionStorage.getItem("orbit-auth-next");
-        sessionStorage.removeItem("orbit-auth-next");
+        const next = sessionStorage.getItem("papership-auth-next");
+        sessionStorage.removeItem("papership-auth-next");
         router.replace(resolveDestination(next));
         router.refresh();
       })

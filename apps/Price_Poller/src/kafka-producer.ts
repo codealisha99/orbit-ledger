@@ -1,7 +1,7 @@
 import { Kafka, CompressionTypes } from "kafkajs";
 import type { Trades } from "./binance";
 const kafka = new Kafka({
-  clientId: "orbitledger-ingest",
+  clientId: "papership-ingest",
   brokers: process.env.KAFKA_BROKERS?.split(",") || ["localhost:9092"],
 });
 const producer = kafka.producer({ idempotent: true, maxInFlightRequests: 1 });

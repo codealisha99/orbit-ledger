@@ -1,5 +1,5 @@
-import { verifySocketToken } from "@orbitledger/shared/security";
-import { prisma } from "@orbitledger/database";
+import { verifySocketToken } from "@papership/shared/security";
+import { prisma } from "@papership/database";
 
 export async function Verifytokenws(token: string) {
   const claims = typeof token === "string" ? verifySocketToken(token) : null;

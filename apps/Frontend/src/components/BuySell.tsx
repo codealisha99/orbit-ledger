@@ -5,7 +5,7 @@ import {
   money,
   liquidationPrice,
   isFreshQuote,
-} from "@orbitledger/shared";
+} from "@papership/shared";
 import { useMarket, type Symbol } from "@/lib/market";
 import { useAccount, useAccountMutation } from "@/lib/account";
 import Protection, { type ProtectionValues } from "./ticket/Protection";
@@ -226,7 +226,7 @@ export default function BuySell({ symbol }: { symbol: Symbol }) {
               className="receipt-link"
               onClick={() =>
                 window.dispatchEvent(
-                  new CustomEvent("orbit-open-receipt", {
+                  new CustomEvent("papership-open-receipt", {
                     detail: mutation.receipt?.positionId,
                   }),
                 )

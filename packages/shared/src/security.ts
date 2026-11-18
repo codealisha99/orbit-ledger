@@ -3,16 +3,14 @@ import jwt from "jsonwebtoken";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { isIP } from "node:net";
 export const TOKEN_ISSUER = "papership";
-export const ALLOWED_ISSUERS: [string, ...string[]] = ["papership", "orbitledger"];
+export const ALLOWED_ISSUERS: [string, ...string[]] = ["papership"];
 export const SESSION_AUDIENCE = "papership:api";
 export const ALLOWED_SESSION_AUDIENCES: [string, ...string[]] = [
   "papership:api",
-  "orbitledger:api",
 ];
 export const WS_AUDIENCE = "papership:ws";
 export const ALLOWED_WS_AUDIENCES: [string, ...string[]] = [
   "papership:ws",
-  "orbitledger:ws",
 ];
 export const SESSION_TTL_SECONDS = 86400;
 export interface SessionClaims {

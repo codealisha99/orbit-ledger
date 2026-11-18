@@ -1,5 +1,5 @@
 {
-  "name": "@orbitledger/price_poller",
+  "name": "@papership/price_poller",
   "module": "src/index.ts",
   "type": "module",
   "private": true,
@@ -18,8 +18,8 @@
   "dependencies": {
     "@types/ws": "^8.18.1",
     "kafkajs": "^2.2.4",
-    "@orbitledger/shared": "workspace:*",
-    "@orbitledger/database": "workspace:*",
+    "@papership/shared": "workspace:*",
+    "@papership/database": "workspace:*",
     "ws": "^8.22.0"
   }
 }

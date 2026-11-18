@@ -33,13 +33,10 @@ async function proxy(
       { error: "Use POST to sign out" },
       { status: 405, headers: { Allow: "POST" } },
     );
-  const token =
-    request.cookies.get("papership-session")?.value ||
-    request.cookies.get("orbit-session")?.value;
+  const token = request.cookies.get("papership-session")?.value;
   if (logout && !token) {
     const response = NextResponse.json({ ok: true });
     response.cookies.delete("papership-session");
-    response.cookies.delete("orbit-session");
     response.headers.set("Cache-Control", "private, no-store");
     return response;
   }
@@ -64,9 +61,7 @@ async function proxy(
       body = {
         code: body?.code,
         verifier:
-          request.cookies.get("papership-oauth-verifier")?.value ??
-          request.cookies.get("orbit-oauth-verifier")?.value ??
-          "",
+          request.cookies.get("papership-oauth-verifier")?.value ?? "",
       };
     await api.assertCompatible();
     const upstream = await fetch(target, {
@@ -80,7 +75,6 @@ async function proxy(
     if (logout && (upstream.ok || [401, 403].includes(upstream.status))) {
       const response = NextResponse.json({ ok: true });
       response.cookies.delete("papership-session");
-      response.cookies.delete("orbit-session");
       response.headers.set("Cache-Control", "private, no-store");
       return response;
     }
@@ -108,16 +102,13 @@ async function proxy(
         maxAge: 86400,
       };
       response.cookies.set("papership-session", authToken, cookieOpts);
-      response.cookies.set("orbit-session", authToken, cookieOpts);
       if (route === "auth/exchange") {
         response.cookies.delete("papership-oauth-verifier");
-        response.cookies.delete("orbit-oauth-verifier");
       }
     }
     response.headers.set("Cache-Control", "private, no-store");
     if ([401, 403].includes(upstream.status)) {
       response.cookies.delete("papership-session");
-      response.cookies.delete("orbit-session");
     }
     const retry = upstream.headers.get("Retry-After");
     if (retry) response.headers.set("Retry-After", retry);

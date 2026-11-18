@@ -3,7 +3,7 @@ import {
   securitySecret,
   TOKEN_ISSUER,
   WS_AUDIENCE,
-} from "@orbitledger/shared/security";
+} from "@papership/shared/security";
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { v5 as uuidv5 } from "uuid"; //Generates same ID for same email
@@ -18,8 +18,8 @@ import {
 } from "../middleware/rateLimit";
 import type { SignupRequest, SigninRequest } from "../types";
 import { signupSchema, signinSchema } from "../types";
-import { fromInternalUSD } from "@orbitledger/shared";
-import { prisma, Prisma } from "@orbitledger/database";
+import { fromInternalUSD } from "@papership/shared";
+import { prisma, Prisma } from "@papership/database";
 
 const UUID_NAMESPACE = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
 export const userRouter = Router(); // To organise ROutes

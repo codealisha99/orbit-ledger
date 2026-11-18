@@ -12,9 +12,9 @@
 ## 1. Executive Summary
 
 ### 1.1 Context and Rebranding Rationale
-The platform formerly known as **Orbit Ledger** has undergone a complete, structural rebranding to **Paper Ship** with canonical web domain **`PaperShip.today`**. Paper Ship operates as a cryptocurrency paper-trading platform allowing users to practice leveraged trading across BTC, ETH, and SOL without risking real capital, while experiencing real-time market data derived from Binance public market feeds.
+The platform formerly known as **Paper Ship** has undergone a complete, structural rebranding to **Paper Ship** with canonical web domain **`PaperShip.today`**. Paper Ship operates as a cryptocurrency paper-trading platform allowing users to practice leveraged trading across BTC, ETH, and SOL without risking real capital, while experiencing real-time market data derived from Binance public market feeds.
 
-The rebranding transitions the visual identity, metadata, OAuth credentials, CSRF/proxy headers, and cookie conventions from "OrbitLedger" to "Paper Ship", establishing a clean terminal-aesthetic brand ("Terminal Study") anchored on educational transparency, zero gamification, hairline borders, and strict financial rigor.
+The rebranding transitions the visual identity, metadata, OAuth credentials, CSRF/proxy headers, and cookie conventions from "Paper Ship" to "Paper Ship", establishing a clean terminal-aesthetic brand ("Terminal Study") anchored on educational transparency, zero gamification, hairline borders, and strict financial rigor.
 
 ### 1.2 System Assessment
 Paper Ship employs a **synthetic Contract-for-Difference (CFD) execution model** with isolated margin and linear perpetual funding. The underlying architecture is a Turborepo monorepo consisting of:
@@ -43,30 +43,30 @@ Every user-facing interface, documentation file, deployment configuration, and s
 
 | Component / Layer | File Path | Previous Identifier | Rebranded Identifier | Backwards Compatibility |
 | :--- | :--- | :--- | :--- | :--- |
-| **Brand Document** | `brand.md` | OrbitLedger | Paper Ship (`PaperShip.today`) | Preserved terminal guidelines |
-| **Project README** | `README.md` | # OrbitLedger | # Paper Ship (`PaperShip.today`) | Architecture links preserved |
-| **Environment Example** | `.env.example` | `orbitledger` DB, `localhost:3000` CORS | `papership` DB, `https://PaperShip.today` CORS | Dual local/prod origins |
-| **Frontend Metadata** | `apps/Frontend/src/app/layout.tsx` | "OrbitLedger — Crypto paper trading" | "Paper Ship — Crypto Paper Trading", canonical `https://PaperShip.today` | Theme fallback support |
-| **Navigation Header** | `apps/Frontend/src/components/AppHeader.tsx` | OrbitLedger, Mark 'O' | Paper Ship, Mark 'P' | Cleans both pending session keys |
-| **Landing Hero & FAQ** | `apps/Frontend/src/components/Landing.tsx` | OrbitLedger | Paper Ship, `aria-label="Paper Ship home"` | Motion controls intact |
-| **Authentication UI** | `apps/Frontend/src/components/AuthForm.tsx` | "New to OrbitLedger?" | "New to Paper Ship?" | Mark 'P', links intact |
-| **Theme Storage** | `apps/Frontend/src/components/ThemeToggle.tsx` | `orbitledger-theme` | `papership-theme` | Fallback reads `orbitledger-theme` |
-| **Trade CSV Export** | `apps/Frontend/src/components/orders/History.tsx` | `orbitledger-trades.csv` | `papership-trades.csv` | Headers identical |
-| **Workspace Export** | `apps/Frontend/src/app/account/page.tsx` | `orbitledger-workspace.json` | `papership-workspace.json` | Schema preserved |
-| **Navigation Guard** | `apps/Frontend/src/lib/navigation.ts` | `https://orbitledger.invalid` | `https://papership.invalid` | Safe origin checking |
-| **Client Session Cookie**| `apps/Frontend/src/app/api/bridge/[...path]/route.ts` | `orbit-session` | `papership-session` | Sets/reads both cookies |
-| **OAuth Verifier Cookie**| `apps/Frontend/src/app/api/oauth/[provider]/route.ts` | `orbit-oauth-verifier` | `papership-oauth-verifier` | Sets/reads both verifiers |
-| **Proxy Client Headers**| `apps/Frontend/src/lib/server/proxy-security.ts` | `X-Orbit-Client-*` | `X-PaperShip-Client-*` | Sends both headers |
-| **Rate Limit Middleware**| `apps/Backend/src/middleware/rateLimit.ts` | `X-Orbit-Client-*` | `X-PaperShip-Client-*` | Accepts either header set |
+| **Brand Document** | `brand.md` | Paper Ship | Paper Ship (`PaperShip.today`) | Preserved terminal guidelines |
+| **Project README** | `README.md` | # Paper Ship | # Paper Ship (`PaperShip.today`) | Architecture links preserved |
+| **Environment Example** | `.env.example` | `papership` DB, `localhost:3000` CORS | `papership` DB, `https://PaperShip.today` CORS | Dual local/prod origins |
+| **Frontend Metadata** | `apps/Frontend/src/app/layout.tsx` | "Paper Ship — Crypto paper trading" | "Paper Ship — Crypto Paper Trading", canonical `https://PaperShip.today` | Theme fallback support |
+| **Navigation Header** | `apps/Frontend/src/components/AppHeader.tsx` | Paper Ship, Mark 'O' | Paper Ship, Mark 'P' | Cleans both pending session keys |
+| **Landing Hero & FAQ** | `apps/Frontend/src/components/Landing.tsx` | Paper Ship | Paper Ship, `aria-label="Paper Ship home"` | Motion controls intact |
+| **Authentication UI** | `apps/Frontend/src/components/AuthForm.tsx` | "New to Paper Ship?" | "New to Paper Ship?" | Mark 'P', links intact |
+| **Theme Storage** | `apps/Frontend/src/components/ThemeToggle.tsx` | `papership-theme` | `papership-theme` | Fallback reads `papership-theme` |
+| **Trade CSV Export** | `apps/Frontend/src/components/orders/History.tsx` | `papership-trades.csv` | `papership-trades.csv` | Headers identical |
+| **Workspace Export** | `apps/Frontend/src/app/account/page.tsx` | `papership-workspace.json` | `papership-workspace.json` | Schema preserved |
+| **Navigation Guard** | `apps/Frontend/src/lib/navigation.ts` | `https://papership.invalid` | `https://papership.invalid` | Safe origin checking |
+| **Client Session Cookie**| `apps/Frontend/src/app/api/bridge/[...path]/route.ts` | `papership-session` | `papership-session` | Sets/reads both cookies |
+| **OAuth Verifier Cookie**| `apps/Frontend/src/app/api/oauth/[provider]/route.ts` | `papership-oauth-verifier` | `papership-oauth-verifier` | Sets/reads both verifiers |
+| **Proxy Client Headers**| `apps/Frontend/src/lib/server/proxy-security.ts` | `X-PaperShip-Client-*` | `X-PaperShip-Client-*` | Sends both headers |
+| **Rate Limit Middleware**| `apps/Backend/src/middleware/rateLimit.ts` | `X-PaperShip-Client-*` | `X-PaperShip-Client-*` | Accepts either header set |
 | **Backend CORS Origins**| `apps/Backend/src/index.ts` | `localhost:3000` only | `https://PaperShip.today`, `https://www.PaperShip.today` | Localhost preserved |
-| **OAuth User Agent** | `apps/Backend/src/routes/oauth.ts` | `OrbitLedger-CFD-App` | `PaperShip-CFD-App` | GitHub OAuth compliant |
-| **Security JWT Claims** | `packages/shared/src/security.ts` | `iss: orbitledger` | `iss: papership` | Verifies `["papership", "orbitledger"]` |
+| **OAuth User Agent** | `apps/Backend/src/routes/oauth.ts` | `Paper Ship-CFD-App` | `PaperShip-CFD-App` | GitHub OAuth compliant |
+| **Security JWT Claims** | `packages/shared/src/security.ts` | `iss: papership` | `iss: papership` | Verifies `["papership", "papership"]` |
 
 ### 2.2 Backwards Compatibility Strategy
 To guarantee zero service disruption during rollouts:
-1. **JWT Verification:** `verify()` in `packages/shared/src/security.ts` explicitly allows both `ALLOWED_ISSUERS = ["papership", "orbitledger"]` and audiences `["papership:api", "orbitledger:api"]`, enabling legacy sessions issued before cutover to remain valid until natural expiration (24h).
-2. **Dual-Cookie Management:** The Next.js bridge proxy reads `papership-session` first, falls back to `orbit-session`, and synchronizes both cookies upon login/refresh, preventing unceremonious logouts for active users.
-3. **Dual-Header IP Attestation:** Backend rate limiting checks `X-PaperShip-Client-*` first, falling back to `X-Orbit-Client-*`.
+1. **JWT Verification:** `verify()` in `packages/shared/src/security.ts` explicitly allows both `ALLOWED_ISSUERS = ["papership", "papership"]` and audiences `["papership:api", "papership:api"]`, enabling legacy sessions issued before cutover to remain valid until natural expiration (24h).
+2. **Dual-Cookie Management:** The Next.js bridge proxy reads `papership-session` first, falls back to `papership-session`, and synchronizes both cookies upon login/refresh, preventing unceremonious logouts for active users.
+3. **Dual-Header IP Attestation:** Backend rate limiting checks `X-PaperShip-Client-*` first, falling back to `X-PaperShip-Client-*`.
 
 ---
 

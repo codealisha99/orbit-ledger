@@ -1,4 +1,4 @@
-import type { Asset } from "@orbitledger/shared";
+import type { Asset } from "@papership/shared";
 
 export type { Asset };
 

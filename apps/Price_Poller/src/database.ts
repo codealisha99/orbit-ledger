@@ -1,4 +1,4 @@
-import { prisma } from "@orbitledger/database";
+import { prisma } from "@papership/database";
 import type { Trades } from "./binance";
 
 const RETENTION_DAYS = Math.min(7, Math.max(1, Number(process.env.TRADE_RETENTION_DAYS ?? 1)));

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { money } from "@orbitledger/shared";
+import { money } from "@papership/shared";
 import { type Position, useAccountMutation } from "@/lib/account";
 export interface PositionAction {
   kind: "close" | "partial-close" | "add-margin" | "protection";

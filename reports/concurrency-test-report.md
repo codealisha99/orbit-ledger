@@ -1,7 +1,7 @@
-# Concurrency and Race Condition Testing Report — Orbit Ledger
+# Concurrency and Race Condition Testing Report — Paper Ship
 
 ## 1. Concurrency Architecture
-Orbit Ledger relies on a dual concurrency architecture:
+Paper Ship relies on a dual concurrency architecture:
 1. **Pessimistic Advisory Locks:** `SELECT pg_advisory_xact_lock(hashtext(:userId))` serializes all mutations for a specific user across distributed backend instances.
 2. **Optimistic Concurrency Control:** `User.version` increments on every mutation, enforcing linear event logging in `AccountEvent` via `@@unique([userId, version])`.
 

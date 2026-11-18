@@ -1,5 +1,5 @@
 import { Order, User, PriceData } from ".././types";
-import { toInternalUSD, Asset, SUPPORTED_ASSETS } from "@orbitledger/shared";
+import { toInternalUSD, Asset, SUPPORTED_ASSETS } from "@papership/shared";
 
 export const StoreData = new Map<string, User>();
 const INITIAL_BALANCE_USD = Number(process.env.INITIAL_BALANCE_USD ?? 5000);

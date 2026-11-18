@@ -1,4 +1,4 @@
-import { prisma, Prisma } from "@orbitledger/database";
+import { prisma, Prisma } from "@papership/database";
 import { createHash, randomUUID } from "node:crypto";
 import {
   feeCents,
@@ -8,10 +8,10 @@ import {
   quantity,
   isFreshQuote,
   type Side,
-} from "@orbitledger/shared";
+} from "@papership/shared";
 import { PriceStorageMp } from "../data/store";
 import { shouldClosePosition } from "../utils/risk";
-import type { Asset } from "@orbitledger/shared";
+import type { Asset } from "@papership/shared";
 
 export class DomainError extends Error {
   constructor(

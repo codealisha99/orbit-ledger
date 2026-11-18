@@ -1,5 +1,5 @@
 {
-  "name": "@orbitledger/websocket",
+  "name": "@papership/websocket",
   "module": "src/index.ts",
   "type": "module",
   "private": true,
@@ -19,8 +19,8 @@
     "dotenv": "^17.2.3",
     "jsonwebtoken": "^9.0.2",
     "redis": "^5.9.0",
-    "@orbitledger/shared": "workspace:*",
+    "@papership/shared": "workspace:*",
     "ws": "^8.22.0",
-    "@orbitledger/database": "workspace:*"
+    "@papership/database": "workspace:*"
   }
 }

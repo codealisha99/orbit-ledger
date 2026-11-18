@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { api } from "@/lib/client";
-import { money } from "@orbitledger/shared";
+import { money } from "@papership/shared";
 interface Point {
   time: string;
   equityCents: number | null;

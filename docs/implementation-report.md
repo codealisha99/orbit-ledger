@@ -2,7 +2,7 @@
 
 Local verification date: 18 October 2026. Implementation follows [the product-quality plan](product-quality-plan.md). Deployment, production data recovery, provider credentials, and representative staging load remain external release gates; see [the runbook](release-runbook.md).
 
-Follow-up: the production service-version mismatch and its correction are documented in [the deployment incident](deployment-incident-20261018.md). The subsequent landing-page rebuild includes an interactive illustrative trading scenario, chart-draw and orbital motion, responsive layouts, FAQ, and motion controls. Current automated coverage is 29 tests / 95 assertions.
+Follow-up: the production service-version mismatch and its correction are documented in [the deployment incident](deployment-incident-20261018.md). The subsequent landing-page rebuild includes an interactive illustrative trading scenario, chart-draw and motion, responsive layouts, FAQ, and motion controls. Current automated coverage is 29 tests / 95 assertions.
 
 ## Delivered
 

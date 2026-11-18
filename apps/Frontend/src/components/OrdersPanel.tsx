@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { money, signedMoney } from "@orbitledger/shared";
+import { money, signedMoney } from "@papership/shared";
 import {
   useAccount,
   useAccountMutation,
@@ -83,8 +83,8 @@ export default function OrdersPanel({ symbol }: { symbol: Symbol }) {
       const id = (event as CustomEvent<string>).detail;
       if (id) void showReceipt(id);
     };
-    window.addEventListener("orbit-open-receipt", open);
-    return () => window.removeEventListener("orbit-open-receipt", open);
+    window.addEventListener("papership-open-receipt", open);
+    return () => window.removeEventListener("papership-open-receipt", open);
   }, []);
   return (
     <section className="account-panel surface" id="account-activity">

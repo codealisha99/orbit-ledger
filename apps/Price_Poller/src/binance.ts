@@ -1,4 +1,4 @@
-import { BINANCE_STREAMS, toInternalPrice } from "@orbitledger/shared";
+import { BINANCE_STREAMS, toInternalPrice } from "@papership/shared";
 import { WebSocket } from "ws";
 import { EventEmitter } from "events"; // build in function to emit things across the code
 

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
-import { prisma } from "@orbitledger/database";
+import { prisma } from "@papership/database";
 import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import { oauthConfig, validateOAuthConfig } from "../config/oauth";
 import { findOrCreateOAuthUser } from "../services/oauthService";

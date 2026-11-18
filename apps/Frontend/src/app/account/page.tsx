@@ -18,7 +18,7 @@ export default function AccountPage() {
     try {
       await api("session/logout-all", { method: "POST", body: "{}" });
       clearAccount();
-      sessionStorage.removeItem("orbit-pending");
+      sessionStorage.removeItem("papership-pending");
       localStorage.removeItem("token");
       localStorage.removeItem("userID");
       router.replace("/signin");

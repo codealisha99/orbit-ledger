@@ -1,6 +1,6 @@
-# OrbitLedger MVP and demo guide
+# Paper Ship MVP and demo guide
 
-OrbitLedger is a crypto paper trading application for BTC, ETH, and SOL. It combines source exchange data with simulated execution, virtual USD collateral, recorded equity, and an account-owned workspace. There are no deposits, withdrawals, or real exchange orders.
+Paper Ship is a crypto paper trading application for BTC, ETH, and SOL. It combines source exchange data with simulated execution, virtual USD collateral, recorded equity, and an account-owned workspace. There are no deposits, withdrawals, or real exchange orders.
 
 Leveraged positions are modeled as linear perpetuals without expiry. Simulated funding is fixed at 1 basis point every 8 hours; longs pay and shorts receive. This is an educational assumption, not exchange data. Funding is applied only while a position is open and its market quote is fresh.
 

@@ -27,7 +27,7 @@ export default function OAuthButtons({
             key={provider}
             onClick={() => {
               setLoading(true);
-              sessionStorage.setItem("orbit-auth-next", signInDestination());
+              sessionStorage.setItem("papership-auth-next", signInDestination());
               location.href = `/api/oauth/${provider}`;
             }}
           >

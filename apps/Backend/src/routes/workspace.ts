@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
-import { prisma } from "@orbitledger/database";
-import { isFreshQuote } from "@orbitledger/shared";
+import { prisma } from "@papership/database";
+import { isFreshQuote } from "@papership/shared";
 import { authMiddleware } from "../middleware/auth";
 import { apiRateLimit } from "../middleware/rateLimit";
 import { PriceStorageMp } from "../data/store";

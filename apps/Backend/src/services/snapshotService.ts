@@ -1,4 +1,4 @@
-import { prisma } from "@orbitledger/database";
+import { prisma } from "@papership/database";
 import { accountSummary } from "./accountService";
 let timer: ReturnType<typeof setTimeout> | undefined;
 let running = false;

@@ -1,4 +1,4 @@
-import { money } from "@orbitledger/shared";
+import { money } from "@papership/shared";
 export const price = (value: number | null) =>
   value === null ? "—" : money(value / 100);
 export const date = (value: string | number) =>

@@ -1,7 +1,7 @@
 import { createClient } from "redis";
 import type { redisPriceData, IncomingredisPriceData } from "../types";
 import { PriceDataSchema, STALE_PRICE_THRESHOLD_MS } from "../types";
-import { isFreshQuote, SUPPORTED_ASSETS, Asset, toInternalPrice } from "@orbitledger/shared";
+import { isFreshQuote, SUPPORTED_ASSETS, Asset, toInternalPrice } from "@papership/shared";
 const client = createClient({
   url: process.env.REDIS_URL,
 });

@@ -1,7 +1,7 @@
-# System Design Gap Analysis — Orbit Ledger
+# System Design Gap Analysis — Paper Ship
 
 ## 1. Executive Summary
-This report analyzes the gap between Orbit Ledger's current system design and that of a production-grade cryptocurrency exchange and retail derivatives brokerage. Orbit Ledger is implemented as a **synthetic Contract-for-Difference (CFD) paper broker**, rather than a Central Limit Order Book (CLOB) exchange.
+This report analyzes the gap between Paper Ship's current system design and that of a production-grade cryptocurrency exchange and retail derivatives brokerage. Paper Ship is implemented as a **synthetic Contract-for-Difference (CFD) paper broker**, rather than a Central Limit Order Book (CLOB) exchange.
 
 ---
 
@@ -11,7 +11,7 @@ This report analyzes the gap between Orbit Ledger's current system design and th
 - **Current Implementation:** Orders are filled immediately against synthetic quotes derived from Binance `aggTrade` prices + a static 50 bps half-spread (`ask = mid * 1.005`, `bid = mid * 0.995`).
 - **Production Standard:** Central Limit Order Book (CLOB) with Price-Time Priority matching engine (FIFO/LMM). Buyers match against sellers; unmatched orders rest in an order book as limit bids/asks.
 - **Gap:**
-  - Orbit Ledger has **no limit order book**, no order queue, and no resting orders.
+  - Paper Ship has **no limit order book**, no order queue, and no resting orders.
   - The platform is the universal counterparty to every trade.
   - No simulation of market depth, book slippage, or bid/ask liquidity depletion.
 

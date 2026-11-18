@@ -1,15 +1,15 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { PriceStorageMp } from "../data/store";
-import { fromInternalPrice } from "@orbitledger/shared";
-import { prisma } from "@orbitledger/database";
+import { fromInternalPrice } from "@papership/shared";
+import { prisma } from "@papership/database";
 import { z } from "zod";
 import {
   isFreshQuote,
   INTERVAL_SECONDS,
   bucketStart,
   SUPPORTED_ASSETS,
-} from "@orbitledger/shared";
+} from "@papership/shared";
 import { getCandelFromDb } from "../services/services";
 import { TimeDurationCandel, ValidSymbol } from "../types";
 import { apiRateLimit, chartDataRateLimit } from "../middleware/rateLimit";

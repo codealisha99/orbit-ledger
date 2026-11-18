@@ -1,5 +1,5 @@
 import { createClient } from "redis";
-import { prisma } from "@orbitledger/database";
+import { prisma } from "@papership/database";
 const client = createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
 });

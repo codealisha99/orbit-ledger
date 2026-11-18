@@ -1,5 +1,5 @@
 {
-  "name": "@orbitledger/backend",
+  "name": "@papership/backend",
   "version": "0.0.1",
   "type": "module",
   "private": true,
@@ -10,8 +10,8 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@orbitledger/database": "workspace:*",
-    "@orbitledger/shared": "workspace:*",
+    "@papership/database": "workspace:*",
+    "@papership/shared": "workspace:*",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
     "express": "^5.3.0",

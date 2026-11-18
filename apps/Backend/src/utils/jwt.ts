@@ -1,13 +1,13 @@
 import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
-import { prisma } from "@orbitledger/database";
+import { prisma } from "@papership/database";
 import {
   securitySecret,
   verifySessionToken,
   TOKEN_ISSUER,
   SESSION_AUDIENCE,
   SESSION_TTL_SECONDS,
-} from "@orbitledger/shared/security";
+} from "@papership/shared/security";
 export async function generateToken(userId: string): Promise<string> {
   const id = randomUUID();
   const expiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);

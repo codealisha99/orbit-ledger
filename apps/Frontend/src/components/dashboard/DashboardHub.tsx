@@ -10,7 +10,7 @@ import {
   RotateCcw,
   X,
 } from "lucide-react";
-import { money, isFreshQuote } from "@orbitledger/shared";
+import { money, isFreshQuote } from "@papership/shared";
 import { api } from "@/lib/client";
 import { useWorkspace } from "@/lib/workspace";
 import { useMarket, type Symbol } from "@/lib/market";

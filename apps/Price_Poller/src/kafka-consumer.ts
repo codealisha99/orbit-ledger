@@ -2,11 +2,11 @@ import { Kafka } from "kafkajs";
 import { writeBatch } from "./database";
 import type { Trades } from "./binance";
 const kafka = new Kafka({
-  clientId: "orbitledger-writer",
+  clientId: "papership-writer",
   brokers: process.env.KAFKA_BROKERS?.split(",") || ["localhost:9092"],
 });
 const consumer = kafka.consumer({
-  groupId: "orbitledger-durable-writer",
+  groupId: "papership-durable-writer",
   sessionTimeout: 60000,
 });
 export async function consumer_gr() {

@@ -7,7 +7,7 @@ import { ArrowUpRight } from "lucide-react";
 import "./dashboard.css";
 import { useAccount, type Execution } from "@/lib/account";
 import { api } from "@/lib/client";
-import { money, signedMoney } from "@orbitledger/shared";
+import { money, signedMoney } from "@papership/shared";
 interface Performance {
   feesComplete: boolean;
   grossPnlCents: number;

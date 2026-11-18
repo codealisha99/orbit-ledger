@@ -3,7 +3,7 @@ import { beforeAll, afterAll, test, expect } from "bun:test";
 import express from "express";
 import { createServer } from "node:http";
 import { randomUUID } from "node:crypto";
-import { prisma } from "@orbitledger/database";
+import { prisma } from "@papership/database";
 import { generateToken } from "../src/utils/jwt";
 import { PriceStorageMp } from "../src/data/store";
 const target = new URL(process.env.DATABASE_URL ?? "postgresql://invalid/");
@@ -550,7 +550,7 @@ test("private socket tickets require a live parent session and expire at their s
   const { Verifytokenws } = await import("../../Websocket/src/utils/wsjwt");
   const { default: jwt } = await import("jsonwebtoken");
   const { WS_AUDIENCE, TOKEN_ISSUER } =
-    await import("@orbitledger/shared/security");
+    await import("@papership/shared/security");
   const session = await generateToken(userId);
   const response = await fetch(`${base}/user/ws-ticket`, {
     headers: { Authorization: `Bearer ${session}` },

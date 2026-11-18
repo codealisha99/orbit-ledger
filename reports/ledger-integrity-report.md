@@ -1,7 +1,7 @@
-# Ledger and Financial Accounting Audit Report — Orbit Ledger
+# Ledger and Financial Accounting Audit Report — Paper Ship
 
 ## 1. Executive Summary
-This audit inspects the financial accounting records, double-entry consistency, and reconciliation mechanisms of Orbit Ledger. The platform does not use traditional debit/credit journal tables, but instead relies on an **immutable audit ledger and transactional event stream** (`AccountEvent`, `ClosedOrder`, `PerpFundingPayment`, and `MutationReceipt`).
+This audit inspects the financial accounting records, double-entry consistency, and reconciliation mechanisms of Paper Ship. The platform does not use traditional debit/credit journal tables, but instead relies on an **immutable audit ledger and transactional event stream** (`AccountEvent`, `ClosedOrder`, `PerpFundingPayment`, and `MutationReceipt`).
 
 ---
 
@@ -34,7 +34,7 @@ Inside this transaction:
 
 ## 3. Independent Balance Reconciliation Test
 
-An automated reconciliation test was constructed in [tests/integration/ledger-reconciliation.test.ts](file:///Users/alisha/Desktop/orbit-ledger/tests/integration/ledger-reconciliation.test.ts).
+An automated reconciliation test was constructed in [tests/integration/ledger-reconciliation.test.ts](file:///Users/alisha/Desktop/papership/tests/integration/ledger-reconciliation.test.ts).
 
 ### Reconciliation Method:
 1. Start with initial virtual balance $B_0 = \$5,000.00$ ($500,000$ cents).

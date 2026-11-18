@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { prisma } from "@orbitledger/database";
+import { prisma } from "@papership/database";
 import { mutateAccount, accountSummary } from "../src/services/accountService";
 import { PriceStorageMp, StoreData, orderStorageMap } from "../src/data/store";
 import { restoreState } from "../src/services/stateRestoration";

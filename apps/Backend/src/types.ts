@@ -1,4 +1,4 @@
-import type { Asset, Leverage } from "@orbitledger/shared";
+import type { Asset, Leverage } from "@papership/shared";
 import { z } from "zod";
 
 export interface User {

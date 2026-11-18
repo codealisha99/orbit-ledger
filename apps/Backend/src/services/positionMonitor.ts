@@ -1,8 +1,8 @@
 import { shouldClosePosition } from "../utils/risk";
 export { shouldClosePosition } from "../utils/risk";
-import { prisma } from "@orbitledger/database";
+import { prisma } from "@papership/database";
 import { executableQuote, mutateAccount } from "./accountService";
-import { type Side } from "@orbitledger/shared";
+import { type Side } from "@papership/shared";
 import { randomUUID } from "node:crypto";
 import { applyDueFunding } from "./perpFunding";
 
