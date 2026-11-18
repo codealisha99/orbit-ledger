@@ -56,11 +56,27 @@ model User {
   emailVerified Boolean  @default(false)
   avatarUrl     String?  // Profile picture from OAuth
   sessions      AuthSession[]
+  identities    ProviderIdentity[]
   watchlist     WatchMarket[]
   priceAlerts   PriceAlert[]
 
   @@index([provider, providerId])
   @@map("users")
+}
+
+model ProviderIdentity {
+  id                String   @id @default(uuid())
+  userId            String
+  provider          String   // "google" | "github"
+  providerAccountId String   // Provider's unique user ID (e.g., Google sub, GitHub ID)
+  email             String?  // Email address reported by provider
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [userId], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("provider_identities")
 }
 
 model WatchMarket {

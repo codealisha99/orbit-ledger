@@ -3,15 +3,41 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import "../dashboard/dashboard.css";
 import { useEffect, useState } from "react";
-import { Download, ShieldCheck, ArrowUpRight, UserRound } from "lucide-react";
+import {
+  Download,
+  ShieldCheck,
+  ArrowUpRight,
+  UserRound,
+  KeyRound,
+  Link2,
+  Unlink,
+  CheckCircle2,
+  AlertCircle,
+} from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import { api } from "@/lib/client";
 import { clearAccount, useAccount } from "@/lib/account";
 import type { Workspace } from "@/lib/workspace";
+
+interface Identity {
+  id: string;
+  provider: string;
+  providerAccountId: string;
+  email: string | null;
+  createdAt: string;
+}
+
+interface AuthMethods {
+  hasPassword: boolean;
+  email: string;
+  identities: Identity[];
+}
+
 export default function AccountPage() {
   const account = useAccount();
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
+
   async function signOutEverywhere() {
     setSigningOut(true);
     setError(null);
@@ -29,9 +55,29 @@ export default function AccountPage() {
       setSigningOut(false);
     }
   }
+
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
+
+  const [authMethods, setAuthMethods] = useState<AuthMethods | null>(null);
+  const [providerConfig, setProviderConfig] = useState<{ google: boolean; github: boolean } | null>(null);
+  const [unlinking, setUnlinking] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const linked = params.get("linked");
+    const err = params.get("error");
+    if (linked) {
+      setNotice(`Successfully connected ${linked.toUpperCase()} to your account.`);
+      history.replaceState(null, "", "/account");
+    } else if (err) {
+      setError(decodeURIComponent(err));
+      history.replaceState(null, "", "/account");
+    }
+  }, []);
+
   useEffect(() => {
     const abort = new AbortController();
     api<Workspace>("user/workspace", { signal: abort.signal })
@@ -42,8 +88,38 @@ export default function AccountPage() {
       .catch((e) => {
         if (!abort.signal.aborted) setError(e.message);
       });
+
+    api<AuthMethods>("auth/identities", { signal: abort.signal })
+      .then((data) => setAuthMethods(data))
+      .catch(() => {});
+
+    api<{ google: boolean; github: boolean }>("auth/status", { signal: abort.signal })
+      .then((data) => setProviderConfig(data))
+      .catch(() => {});
+
     return () => abort.abort();
   }, [account.summary?.userId, retry]);
+
+  async function unlinkProvider(provider: "google" | "github") {
+    if (!authMethods) return;
+    if (!authMethods.hasPassword && authMethods.identities.length <= 1) {
+      setError("Cannot disconnect your only sign-in method. Set a password or connect another provider first.");
+      return;
+    }
+
+    setUnlinking(provider);
+    setError(null);
+    try {
+      await api(`auth/identities/${provider}`, { method: "DELETE" });
+      setNotice(`Disconnected ${provider.toUpperCase()} from your account.`);
+      setRetry((n) => n + 1);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setUnlinking(null);
+    }
+  }
+
   function download() {
     if (!workspace) return;
     const url = URL.createObjectURL(
@@ -64,6 +140,10 @@ export default function AccountPage() {
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
+
+  const googleLinked = authMethods?.identities.some((i) => i.provider === "google");
+  const githubLinked = authMethods?.identities.some((i) => i.provider === "github");
+
   return (
     <div className="workspace">
       <AppHeader />
@@ -79,14 +159,24 @@ export default function AccountPage() {
             <ArrowUpRight size={16} />
           </Link>
         </div>
+
+        {notice && (
+          <div className="notice success" role="status">
+            <CheckCircle2 size={16} />
+            {notice}
+          </div>
+        )}
+
         {error && (
           <div className="notice error" role="alert">
+            <AlertCircle size={16} />
             {error}
             <button onClick={() => setRetry((n) => n + 1)}>
-              Retry account details
+              Retry
             </button>
           </div>
         )}
+
         <div className="account-settings-grid">
           <section className="surface account-details">
             <div className="section-heading">
@@ -104,7 +194,7 @@ export default function AccountPage() {
                     <dd>{workspace.profile.email}</dd>
                   </div>
                   <div>
-                    <dt>Sign-in method</dt>
+                    <dt>Primary method</dt>
                     <dd>
                       {workspace.profile.provider
                         ? `${workspace.profile.provider} account`
@@ -154,27 +244,92 @@ export default function AccountPage() {
               </p>
             )}
           </section>
-          <section className="surface account-guide">
+
+          <section className="surface account-details">
             <div className="section-heading">
               <h2>
-                <ShieldCheck size={18} />A practice environment
+                <KeyRound size={18} />
+                Connected sign-in methods
               </h2>
+              <span>Multi-provider</span>
             </div>
-            <p>
-              Your balance is virtual USD. It has no cash value, cannot be
-              withdrawn, and is never sent to an exchange.
+
+            <dl className="trade-preview">
+              <div>
+                <dt>Password</dt>
+                <dd>{authMethods?.hasPassword ? "Active" : "Not configured"}</dd>
+              </div>
+
+              <div>
+                <dt>Google</dt>
+                <dd style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  {googleLinked ? (
+                    <>
+                      <span className="paper-tag">Connected</span>
+                      <button
+                        className="quiet"
+                        disabled={unlinking === "google"}
+                        onClick={() => void unlinkProvider("google")}
+                        title="Disconnect Google sign-in"
+                      >
+                        <Unlink size={13} />
+                        {unlinking === "google" ? "Disconnecting…" : "Disconnect"}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      className="quiet"
+                      disabled={!providerConfig?.google}
+                      title={providerConfig?.google ? "Connect your Google account" : "Google OAuth not configured in server environment"}
+                      onClick={() => {
+                        location.href = "/api/oauth/google?link=1";
+                      }}
+                    >
+                      <Link2 size={13} />
+                      {providerConfig?.google ? "Connect Google" : "Unavailable"}
+                    </button>
+                  )}
+                </dd>
+              </div>
+
+              <div>
+                <dt>GitHub</dt>
+                <dd style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  {githubLinked ? (
+                    <>
+                      <span className="paper-tag">Connected</span>
+                      <button
+                        className="quiet"
+                        disabled={unlinking === "github"}
+                        onClick={() => void unlinkProvider("github")}
+                        title="Disconnect GitHub sign-in"
+                      >
+                        <Unlink size={13} />
+                        {unlinking === "github" ? "Disconnecting…" : "Disconnect"}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      className="quiet"
+                      disabled={!providerConfig?.github}
+                      title={providerConfig?.github ? "Connect your GitHub account" : "GitHub OAuth not configured in server environment"}
+                      onClick={() => {
+                        location.href = "/api/oauth/github?link=1";
+                      }}
+                    >
+                      <Link2 size={13} />
+                      {providerConfig?.github ? "Connect GitHub" : "Unavailable"}
+                    </button>
+                  )}
+                </dd>
+              </div>
+            </dl>
+            <p className="muted">
+              Connect multiple providers to sign into Paper Ship through any of your accounts. You cannot disconnect your only usable login method.
             </p>
-            <p>
-              Use this space to understand trade sizing, exposure, costs, and
-              your decisions. Simulated performance does not predict real
-              trading results.
-            </p>
-            <Link className="primary" href="/trading">
-              Open trading workspace
-              <ArrowUpRight size={16} />
-            </Link>
           </section>
         </div>
+
         <section className="surface mvp-guide">
           <div className="section-heading">
             <h2>How your paper account works</h2>

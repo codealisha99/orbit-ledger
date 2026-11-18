@@ -1,20 +1,28 @@
 
 export const oauthConfig = {
-  google: {
-    clientID: process.env.GOOGLE_CLIENT_ID || "",
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-    callbackURL:
-      process.env.GOOGLE_CALLBACK_URL ||
-      "http://localhost:5000/api/v2/auth/google/callback",
+  get google() {
+    return {
+      clientID: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      callbackURL:
+        process.env.GOOGLE_REDIRECT_URI ||
+        process.env.GOOGLE_CALLBACK_URL ||
+        "http://localhost:5000/api/v2/auth/google/callback",
+    };
   },
-  github: {
-    clientID: process.env.GITHUB_CLIENT_ID || "",
-    clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
-    callbackURL:
-      process.env.GITHUB_CALLBACK_URL ||
-      "http://localhost:5000/api/v2/auth/github/callback",
+  get github() {
+    return {
+      clientID: process.env.GITHUB_CLIENT_ID || "",
+      clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
+      callbackURL:
+        process.env.GITHUB_REDIRECT_URI ||
+        process.env.GITHUB_CALLBACK_URL ||
+        "http://localhost:5000/api/v2/auth/github/callback",
+    };
   },
-  frontendURL: process.env.FRONTEND_URL || "http://localhost:3000",
+  get frontendURL() {
+    return process.env.FRONTEND_URL || "http://localhost:3000";
+  },
 };
 
 export function validateOAuthConfig(): {

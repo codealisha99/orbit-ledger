@@ -15,6 +15,11 @@ export async function GET(
     "challenge",
     createHash("sha256").update(verifier).digest("hex"),
   );
+  const isLink = _request.nextUrl.searchParams.get("link") === "1";
+  const sessionToken = _request.cookies.get("papership-session")?.value;
+  if (isLink && sessionToken) {
+    url.searchParams.set("link_token", sessionToken);
+  }
   const response = NextResponse.redirect(url);
   const cookieOpts = {
     httpOnly: true,

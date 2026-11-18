@@ -17,11 +17,31 @@ export default function AuthForm({ signup = false }: { signup?: boolean }) {
   useEffect(() => {
     setNext(signInDestination());
     localStorage.removeItem("token");
-    localStorage.removeItem("userID");
-    if (new URLSearchParams(location.search).has("error"))
-      setError(
-        "Provider sign-in could not be completed. Use your original sign-in method or try again.",
-      );
+    const search = new URLSearchParams(location.search);
+    const errCode = search.get("error");
+    const errEmail = search.get("email");
+    if (errCode) {
+      if (errCode === "access_denied") {
+        setError("Sign-in was cancelled with the provider.");
+      } else if (errCode === "invalid_state") {
+        setError("Authentication session expired or security check failed. Please try again.");
+      } else if (errCode === "unverified_email") {
+        setError("Your provider email is not verified. Please verify your email with Google or GitHub first.");
+      } else if (errCode === "account_exists_link_required") {
+        setError(
+          errEmail
+            ? `An account for ${errEmail} already exists. Sign in with your password to link this provider in Account settings.`
+            : "An account with this email already exists. Sign in with your password to link your provider in Account settings.",
+        );
+        if (errEmail) setEmail(errEmail);
+      } else if (errCode === "no_email") {
+        setError("The provider did not provide a verified email. A verified email is required.");
+      } else if (errCode === "token_failed") {
+        setError("Could not complete secure code exchange with the provider. Please try again.");
+      } else {
+        setError("Provider sign-in could not be completed. Use your original sign-in method or try again.");
+      }
+    }
   }, []);
   async function submit(e: React.FormEvent) {
     e.preventDefault();
