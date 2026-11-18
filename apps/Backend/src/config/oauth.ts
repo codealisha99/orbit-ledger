@@ -21,7 +21,12 @@ export const oauthConfig = {
     };
   },
   get frontendURL() {
-    return process.env.FRONTEND_URL || "http://localhost:3000";
+    return (
+      process.env.FRONTEND_URL ||
+      (process.env.NODE_ENV === "production"
+        ? "https://papership.today"
+        : "http://localhost:3000")
+    );
   },
 };
 
