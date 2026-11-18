@@ -92,5 +92,40 @@ export async function getCandelFromDb(
       candles.set(time, c);
     }
   }
+
+  if (candles.size === 0) {
+    try {
+      const params = new URLSearchParams({
+        symbol: `${symbol}USDT`,
+        interval,
+        startTime: String(start * 1000),
+        endTime: String(end * 1000),
+        limit: "1000",
+      });
+      const response = await fetch(
+        `https://data-api.binance.vision/api/v3/klines?${params}`,
+        { signal: AbortSignal.timeout(5000) },
+      );
+      if (response.ok) {
+        const rows = (await response.json()) as Array<
+          [number, string, string, string, string, string, ...unknown[]]
+        >;
+        for (const row of rows) {
+          const time = Math.floor(row[0] / 1000);
+          candles.set(time, {
+            time,
+            open: Number(row[1]),
+            high: Number(row[2]),
+            low: Number(row[3]),
+            close: Number(row[4]),
+            volume: String(row[5]),
+          });
+        }
+      }
+    } catch {
+      // Ignore on-demand fetch errors and return what we have
+    }
+  }
+
   return [...candles.values()].sort((a, b) => a.time - b.time);
 }

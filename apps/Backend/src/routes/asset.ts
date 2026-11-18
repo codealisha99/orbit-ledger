@@ -13,6 +13,7 @@ import {
 import { getCandelFromDb } from "../services/services";
 import { TimeDurationCandel, ValidSymbol } from "../types";
 import { apiRateLimit, chartDataRateLimit } from "../middleware/rateLimit";
+import { refreshQuotesFromRest } from "../services/priceMonitor";
 
 export const assetRouter = Router();
 
@@ -31,8 +32,15 @@ const ASSET_METADATA = {
   },
 };
 
-assetRouter.get("/", apiRateLimit, (req: Request, res: Response): void => {
+assetRouter.get("/", apiRateLimit, async (req: Request, res: Response): Promise<void> => {
   try {
+    const hasStale = SUPPORTED_ASSETS.some(
+      (symbol) => !isFreshQuote(PriceStorageMp.get(symbol)),
+    );
+    if (hasStale) {
+      await refreshQuotesFromRest();
+    }
+
     const assets = SUPPORTED_ASSETS.map((symbol) => {
       const priceData = PriceStorageMp.get(symbol);
       const metadata = ASSET_METADATA[symbol];
