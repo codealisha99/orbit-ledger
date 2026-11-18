@@ -9,7 +9,9 @@ export default function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>("dark");
 
   useEffect(() => {
-    const saved = localStorage.getItem("orbitledger-theme");
+    const saved =
+      localStorage.getItem("papership-theme") ||
+      localStorage.getItem("orbitledger-theme");
     const initial: Theme =
       saved === "light" || saved === "dark" ? saved : "dark";
     document.documentElement.dataset.theme = initial;
@@ -19,7 +21,7 @@ export default function ThemeToggle() {
   function toggleTheme() {
     const next: Theme = theme === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = next;
-    localStorage.setItem("orbitledger-theme", next);
+    localStorage.setItem("papership-theme", next);
     setTheme(next);
   }
 

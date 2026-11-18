@@ -50,7 +50,7 @@ export default function AuthForm({ signup = false }: { signup?: boolean }) {
       </div>
       <div className="auth-card">
         <Link href="/" className="brand">
-          <span className="brand-mark">O</span>OrbitLedger
+          <span className="brand-mark">P</span>Paper Ship
         </Link>
         <h1>{signup ? "Start your paper account" : "Welcome back"}</h1>
         <p>
@@ -105,7 +105,7 @@ export default function AuthForm({ signup = false }: { signup?: boolean }) {
         </form>
         <OAuthButtons disabled={busy} />
         <p>
-          {signup ? "Already have an account?" : "New to OrbitLedger?"}{" "}
+          {signup ? "Already have an account?" : "New to Paper Ship?"}{" "}
           <Link
             href={`${signup ? "/signin" : "/signup"}?next=${encodeURIComponent(next)}`}
           >

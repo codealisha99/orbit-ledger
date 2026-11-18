@@ -32,12 +32,10 @@ export default function BuySell({ symbol }: { symbol: Symbol }) {
     [symbol, side],
   );
   const quote = market.quotes[symbol];
-  const fresh =
-    market.connected &&
-    isFreshQuote(
-      quote && { bid: quote.bidPrice, ask: quote.askPrice, time: quote.time },
-      now,
-    );
+  const fresh = isFreshQuote(
+    quote && { bid: quote.bidPrice, ask: quote.askPrice, time: quote.time },
+    now,
+  );
   const price = quote ? (side === "buy" ? quote.askPrice : quote.bidPrice) : 0;
   const collateral = Math.round(Number(margin) * 100);
   const validAmount =

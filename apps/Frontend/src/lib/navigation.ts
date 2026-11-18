@@ -6,9 +6,9 @@ export function resolveDestination(next: unknown) {
     /[\\\u0000-\u001f]/.test(next)
   )
     return "/dashboard";
-  const url = new URL(next, "https://orbitledger.invalid");
+  const url = new URL(next, "https://papership.invalid");
   if (
-    url.origin !== "https://orbitledger.invalid" ||
+    url.origin !== "https://papership.invalid" ||
     /^\/(signin|signup|auth)(\/|$)/.test(url.pathname)
   )
     return "/dashboard";

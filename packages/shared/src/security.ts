@@ -2,9 +2,18 @@
 import jwt from "jsonwebtoken";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { isIP } from "node:net";
-export const TOKEN_ISSUER = "orbitledger";
-export const SESSION_AUDIENCE = "orbitledger:api";
-export const WS_AUDIENCE = "orbitledger:ws";
+export const TOKEN_ISSUER = "papership";
+export const ALLOWED_ISSUERS: [string, ...string[]] = ["papership", "orbitledger"];
+export const SESSION_AUDIENCE = "papership:api";
+export const ALLOWED_SESSION_AUDIENCES: [string, ...string[]] = [
+  "papership:api",
+  "orbitledger:api",
+];
+export const WS_AUDIENCE = "papership:ws";
+export const ALLOWED_WS_AUDIENCES: [string, ...string[]] = [
+  "papership:ws",
+  "orbitledger:ws",
+];
 export const SESSION_TTL_SECONDS = 86400;
 export interface SessionClaims {
   userId: string;
@@ -35,10 +44,13 @@ function verify(token: string, purpose: "session" | "websocket"): any | null {
   try {
     const value = jwt.verify(token, securitySecret(), {
       algorithms: ["HS256"],
-      issuer: TOKEN_ISSUER,
-      audience: purpose === "session" ? SESSION_AUDIENCE : WS_AUDIENCE,
+      issuer: ALLOWED_ISSUERS,
+      audience:
+        purpose === "session"
+          ? ALLOWED_SESSION_AUDIENCES
+          : ALLOWED_WS_AUDIENCES,
       maxAge: purpose === "session" ? "24h" : "60s",
-    });
+    }) as any;
     if (
       typeof value !== "object" ||
       value.purpose !== purpose ||

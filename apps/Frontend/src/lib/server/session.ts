@@ -1,7 +1,10 @@
 import "server-only";
 import { cookies } from "next/headers";
 export async function hasSession() {
-  const token = (await cookies()).get("orbit-session")?.value;
+  const cookieStore = await cookies();
+  const token =
+    cookieStore.get("papership-session")?.value ||
+    cookieStore.get("orbit-session")?.value;
   if (!token) return false;
   try {
     const base =

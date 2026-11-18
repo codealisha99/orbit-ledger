@@ -169,7 +169,7 @@ export default function History({
       const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
       const a = document.createElement("a");
       a.href = url;
-      a.download = "orbitledger-trades.csv";
+      a.download = "papership-trades.csv";
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {

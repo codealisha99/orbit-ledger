@@ -1,10 +1,10 @@
-# Brand — OrbitLedger
+# Brand — Paper Ship
 
 _Status: active · Direction: Terminal Study_
-_Defined 2026-11-10 · Source of truth for all UI decisions._
+_Domain: PaperShip.today · Source of truth for all UI decisions._
 
-OrbitLedger is a crypto **paper-trading practice** app: real market data,
-simulated execution, virtual funds. Its users are learning — the design must
+Paper Ship is a crypto **paper-trading practice** app: real market data,
+simulated execution, virtual funds. Canonical web destination: `PaperShip.today`. Its users are learning — the design must
 feel like a precise instrument they trust, not a casino.
 
 ## Design philosophy

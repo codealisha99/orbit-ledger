@@ -144,6 +144,7 @@ function subscribe(fn: () => void) {
     void poll(++pollEpoch);
     document.addEventListener("visibilitychange", resume);
     window.addEventListener("online", resume);
+    window.addEventListener("papership-account-event", resume);
     window.addEventListener("orbit-account-event", resume);
   }
   return () => {
@@ -153,6 +154,7 @@ function subscribe(fn: () => void) {
       if (timer) clearTimeout(timer);
       document.removeEventListener("visibilitychange", resume);
       window.removeEventListener("online", resume);
+      window.removeEventListener("papership-account-event", resume);
       window.removeEventListener("orbit-account-event", resume);
     }
   };
@@ -221,7 +223,9 @@ export function useAccountMutation(owner: string) {
   useEffect(() => {
     if (restored) return;
     restored = true;
-    const saved = sessionStorage.getItem("orbit-pending");
+    const saved =
+      sessionStorage.getItem("papership-pending") ||
+      sessionStorage.getItem("orbit-pending");
     if (saved) {
       try {
         const pending = JSON.parse(saved) as Pending;
@@ -233,6 +237,7 @@ export function useAccountMutation(owner: string) {
             "A previous submission needs reconciliation. Retry the saved request safely.",
         });
       } catch {
+        sessionStorage.removeItem("papership-pending");
         sessionStorage.removeItem("orbit-pending");
       }
     }
@@ -257,7 +262,7 @@ export function useAccountMutation(owner: string) {
       owner,
       userId,
     };
-    sessionStorage.setItem("orbit-pending", JSON.stringify(request));
+    sessionStorage.setItem("papership-pending", JSON.stringify(request));
     emitMutation({
       ...emptyMutation,
       pending: request,
@@ -271,6 +276,7 @@ export function useAccountMutation(owner: string) {
         receiptId?: string;
         positionId: string;
       }>(request.path, request.body, request.key);
+      sessionStorage.removeItem("papership-pending");
       sessionStorage.removeItem("orbit-pending");
       emitMutation({ ...emptyMutation, receipt, owner: request.owner });
       await refreshAccount();
@@ -282,7 +288,10 @@ export function useAccountMutation(owner: string) {
           err.status < 500 &&
           ![401, 403, 408, 429].includes(err.status)) ||
           err.code === "QUOTE_UNAVAILABLE");
-      if (definitive) sessionStorage.removeItem("orbit-pending");
+      if (definitive) {
+        sessionStorage.removeItem("papership-pending");
+        sessionStorage.removeItem("orbit-pending");
+      }
       emitMutation({
         ...emptyMutation,
         owner: request.owner,

@@ -97,6 +97,10 @@ const allowedOrigins = (process.env.CORS_ORIGINS ?? "")
   .filter(Boolean);
 
 const defaultOrigins = [
+  "https://PaperShip.today",
+  "https://papership.today",
+  "https://www.PaperShip.today",
+  "https://www.papership.today",
   "http://localhost:3000",
   "http://localhost:5173",
   "http://localhost:5174",

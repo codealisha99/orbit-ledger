@@ -21,7 +21,7 @@ const trace =
 const questions = [
   [
     "Am I trading real money?",
-    "No. OrbitLedger is a paper trading environment. Your balance is virtual, has no cash value, and cannot be deposited or withdrawn. No real assets are bought or sold.",
+    "No. Paper Ship is a paper trading environment. Your balance is virtual, has no cash value, and cannot be deposited or withdrawn. No real assets are bought or sold.",
   ],
   [
     "Where does the market data come from?",
@@ -54,8 +54,8 @@ export default function Landing({ signedIn = false }: { signedIn?: boolean }) {
         Skip to content
       </a>
       <header className="launch-nav">
-        <Link href="/" className="brand" aria-label="OrbitLedger home">
-          <span className="brand-mark">O</span>OrbitLedger
+        <Link href="/" className="brand" aria-label="Paper Ship home">
+          <span className="brand-mark">P</span>Paper Ship
         </Link>
         <nav aria-label="Main navigation">
           <a href="#workspace">The workspace</a>
@@ -440,7 +440,7 @@ export default function Landing({ signedIn = false }: { signedIn?: boolean }) {
       <footer className="launch-footer">
         <div>
           <Link href="/" className="brand">
-            <span className="brand-mark">O</span>OrbitLedger
+            <span className="brand-mark">P</span>Paper Ship
           </Link>
           <p>
             A little more understanding.
@@ -462,7 +462,7 @@ export default function Landing({ signedIn = false }: { signedIn?: boolean }) {
           trading results. Not investment advice.
         </p>
         <span className="launch-copyright">
-          © {new Date().getFullYear()} OrbitLedger
+          © {new Date().getFullYear()} Paper Ship
         </span>
       </footer>
     </div>

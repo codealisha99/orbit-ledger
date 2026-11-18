@@ -38,12 +38,18 @@ export async function startRedis() {
         const midPrice = tradeData.price;
         const spreadAmount = Math.floor(midPrice * 0.005); // 0.5% spread
 
+        const now = Date.now();
+        const quoteTime =
+          Math.abs(now - tradeData.timestamp) < 5000
+            ? tradeData.timestamp
+            : now;
+
         const redisPriceData: typeofredishPriceData = {
           symbol: tradeData.symbol.replace("USDT", ""),
           askPrice: midPrice + spreadAmount, // Higher price for buying
           bidPrice: midPrice - spreadAmount, // Lower price for selling
           decimals: 4,
-          time: tradeData.timestamp,
+          time: quoteTime,
           tradeId: tradeData.tradeId,
           price: tradeData.price,
           quantity: tradeData.quantity,

@@ -293,7 +293,7 @@ oauthRouter.get(
         headers: {
           Authorization: `Bearer ${tokens.access_token}`,
           Accept: "application/vnd.github.v3+json",
-          "User-Agent": "OrbitLedger-CFD-App",
+          "User-Agent": "PaperShip-CFD-App",
         },
       });
 
@@ -317,7 +317,7 @@ oauthRouter.get(
             headers: {
               Authorization: `Bearer ${tokens.access_token}`,
               Accept: "application/vnd.github.v3+json",
-              "User-Agent": "OrbitLedger-CFD-App",
+              "User-Agent": "PaperShip-CFD-App",
             },
           },
         );

@@ -79,6 +79,9 @@ function connect() {
       const message = JSON.parse(event.data);
       if (message.type === "ACCOUNT_EVENT") {
         window.dispatchEvent(
+          new CustomEvent("papership-account-event", { detail: message.data }),
+        );
+        window.dispatchEvent(
           new CustomEvent("orbit-account-event", { detail: message.data }),
         );
         return;
@@ -124,12 +127,67 @@ function connect() {
       );
   };
 }
+let restPollTimer: ReturnType<typeof setInterval> | undefined;
+
+async function fetchRestQuotes() {
+  try {
+    const res = await api<{
+      assets: Array<{
+        symbol: Symbol;
+        buyPrice: number | null;
+        sellPrice: number | null;
+        time: number | null;
+        stale: boolean;
+      }>;
+    }>("asset");
+    if (!res?.assets) return;
+    const nextQuotes = { ...state.quotes };
+    let changed = false;
+    for (const a of res.assets) {
+      if (!a.buyPrice || !a.sellPrice || !a.time || a.stale) continue;
+      const existing = nextQuotes[a.symbol];
+      if (!existing || a.time > existing.time) {
+        nextQuotes[a.symbol] = {
+          symbol: a.symbol,
+          askPrice: Math.round(a.buyPrice * 10000),
+          bidPrice: Math.round(a.sellPrice * 10000),
+          tradeId: `rest-${a.time}`,
+          price: Math.round(((a.buyPrice + a.sellPrice) / 2) * 10000),
+          quantity: "1",
+          time: a.time,
+          source: "Binance-REST",
+        };
+        changed = true;
+      }
+    }
+    if (changed) {
+      emitThrottled({ ...state, quotes: nextQuotes });
+    }
+  } catch {
+    // Ignore REST polling errors
+  }
+}
+
 function subscribe(fn: () => void) {
   listeners.add(fn);
-  if (listeners.size === 1 && !socket) connect();
+  if (listeners.size === 1) {
+    void fetchRestQuotes();
+    if (!socket) connect();
+    if (!restPollTimer) {
+      restPollTimer = setInterval(() => {
+        if (!state.connected) {
+          void fetchRestQuotes();
+        }
+      }, 5000);
+    }
+  }
   return () => {
     listeners.delete(fn);
     if (!listeners.size) {
+      if (restPollTimer) {
+        clearInterval(restPollTimer);
+        restPollTimer = undefined;
+      }
       if (reconnect) clearTimeout(reconnect);
       if (authTimer) clearInterval(authTimer);
       if (heartbeat) clearInterval(heartbeat);

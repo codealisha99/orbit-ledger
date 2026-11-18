@@ -20,9 +20,13 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "OrbitLedger — Crypto paper trading",
+  metadataBase: new URL("https://PaperShip.today"),
+  title: "Paper Ship — Crypto Paper Trading",
   description:
-    "Practice crypto trading with virtual funds, clear costs, and a complete trade history.",
+    "Practice crypto trading with virtual funds, clear costs, and a complete trade history on PaperShip.today.",
+  alternates: {
+    canonical: "https://PaperShip.today",
+  },
 };
 
 export default async function RootLayout({
@@ -39,7 +43,7 @@ export default async function RootLayout({
           nonce={nonce}
           suppressHydrationWarning
           dangerouslySetInnerHTML={{
-            __html: `try { var theme = localStorage.getItem('orbitledger-theme'); document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark'; } catch (_) { document.documentElement.dataset.theme = 'dark'; }`,
+            __html: `try { var theme = localStorage.getItem('papership-theme') || localStorage.getItem('orbitledger-theme'); document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark'; } catch (_) { document.documentElement.dataset.theme = 'dark'; }`,
           }}
         />
         <Toaster

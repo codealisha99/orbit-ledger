@@ -16,13 +16,15 @@ export async function GET(
     createHash("sha256").update(verifier).digest("hex"),
   );
   const response = NextResponse.redirect(url);
-  response.cookies.set("orbit-oauth-verifier", verifier, {
+  const cookieOpts = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: "lax" as const,
     path: "/",
     maxAge: 600,
-  });
+  };
+  response.cookies.set("papership-oauth-verifier", verifier, cookieOpts);
+  response.cookies.set("orbit-oauth-verifier", verifier, cookieOpts);
   response.headers.set("Cache-Control", "private, no-store");
   response.headers.set("Referrer-Policy", "no-referrer");
   return response;

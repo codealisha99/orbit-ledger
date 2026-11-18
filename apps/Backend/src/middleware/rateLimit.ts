@@ -52,9 +52,12 @@ export async function closeRateLimitStore(): Promise<void> {
 
 function ipKey(req: Request) {
   const forwarded = verifiedProxyIp({
-    ip: req.get("X-Orbit-Client-IP"),
-    timestamp: req.get("X-Orbit-Client-Time"),
-    signature: req.get("X-Orbit-Client-Signature"),
+    ip: req.get("X-PaperShip-Client-IP") || req.get("X-Orbit-Client-IP"),
+    timestamp:
+      req.get("X-PaperShip-Client-Time") || req.get("X-Orbit-Client-Time"),
+    signature:
+      req.get("X-PaperShip-Client-Signature") ||
+      req.get("X-Orbit-Client-Signature"),
   });
   return ipKeyGenerator(
     forwarded || req.ip || req.socket.remoteAddress || "unknown",

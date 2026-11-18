@@ -26,10 +26,14 @@ export function signedClientHeaders(request: Request): Record<string, string> {
         : "";
   if (!isIP(ip)) return {};
   const timestamp = String(Date.now());
+  const sig = proxySignature(ip, timestamp, secret);
   return {
+    "X-PaperShip-Client-IP": ip,
+    "X-PaperShip-Client-Time": timestamp,
+    "X-PaperShip-Client-Signature": sig,
     "X-Orbit-Client-IP": ip,
     "X-Orbit-Client-Time": timestamp,
-    "X-Orbit-Client-Signature": proxySignature(ip, timestamp, secret),
+    "X-Orbit-Client-Signature": sig,
   };
 }
 export async function limitedJson(

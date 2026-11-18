@@ -1,0 +1,183 @@
+{
+  "timestamp": "2026-11-18T19:54:00.000Z",
+  "environment": {
+    "runtime": "Bun 1.4.2",
+    "os": "macOS (darwin arm64)",
+    "database": "PostgreSQL 16 / TimescaleDB (Docker)",
+    "cache": "Redis 7.2.7-alpine (Docker)"
+  },
+  "summary": {
+    "totalTestFiles": 20,
+    "totalTests": 85,
+    "passed": 85,
+    "failed": 0,
+    "blocked": 0,
+    "notImplemented": 0,
+    "assertions": 375,
+    "durationMs": 2540
+  },
+  "suites": [
+    {
+      "name": "unit-rebranding",
+      "path": "tests/unit/rebranding.test.ts",
+      "tests": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "name": "unit-quote-recovery",
+      "path": "tests/unit/quote-recovery.test.ts",
+      "tests": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "name": "unit-market-data",
+      "path": "tests/unit/market-data.test.ts",
+      "tests": 6,
+      "passed": 6,
+      "failed": 0
+    },
+    {
+      "name": "unit-order-validation",
+      "path": "tests/unit/order-validation.test.ts",
+      "tests": 6,
+      "passed": 6,
+      "failed": 0
+    },
+    {
+      "name": "financial-invariants-accounting",
+      "path": "tests/financial-invariants/accounting.test.ts",
+      "tests": 7,
+      "passed": 7,
+      "failed": 0
+    },
+    {
+      "name": "concurrency-double-spend",
+      "path": "tests/concurrency/double-spend.test.ts",
+      "tests": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "name": "integration-ledger-reconciliation",
+      "path": "tests/integration/ledger-reconciliation.test.ts",
+      "tests": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "name": "fault-injection",
+      "path": "tests/fault-injection/fault-tolerance.test.ts",
+      "tests": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "name": "security-authorization",
+      "path": "tests/security/auth-security.test.ts",
+      "tests": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "name": "performance-latency-benchmark",
+      "path": "tests/performance/latency-benchmark.test.ts",
+      "tests": 3,
+      "passed": 3,
+      "failed": 0,
+      "metrics": {
+        "accountSummary_p50_ms": 0.98,
+        "accountSummary_p95_ms": 1.18,
+        "accountSummary_p99_ms": 1.36,
+        "orderExecution_p50_ms": 2.26,
+        "orderExecution_p95_ms": 3.01,
+        "orderExecution_p99_ms": 5.86,
+        "orderThroughput_ops_sec": 414.7,
+        "burst10Users_latency_ms": 8.00
+      }
+    },
+    {
+      "name": "e2e-smoke",
+      "path": "tests/e2e/e2e-smoke.test.ts",
+      "tests": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "name": "price-poller-spool",
+      "path": "apps/Price_Poller/tests/spool.test.ts",
+      "tests": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "name": "frontend-navigation",
+      "path": "apps/Frontend/tests/navigation.test.ts",
+      "tests": 2,
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "name": "frontend-upstream",
+      "path": "apps/Frontend/tests/upstream.test.ts",
+      "tests": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "name": "frontend-proxy-security",
+      "path": "apps/Frontend/tests/proxy-security.test.ts",
+      "tests": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "name": "backend-account-integration",
+      "path": "apps/Backend/tests/account.integration.test.ts",
+      "tests": 10,
+      "passed": 10,
+      "failed": 0
+    },
+    {
+      "name": "backend-http-integration",
+      "path": "apps/Backend/tests/http.integration.test.ts",
+      "tests": 14,
+      "passed": 14,
+      "failed": 0
+    },
+    {
+      "name": "shared-security",
+      "path": "packages/shared/tests/security.test.ts",
+      "tests": 2,
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "name": "shared-domain",
+      "path": "packages/shared/tests/domain.test.ts",
+      "tests": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "name": "shared-build-security",
+      "path": "packages/shared/tests/build-security.test.ts",
+      "tests": 1,
+      "passed": 1,
+      "failed": 0
+    }
+  ],
+  "securityAudit": {
+    "status": "FAILING",
+    "unmitigatedAdvisories": 6,
+    "advisories": [
+      { "package": "body-parser", "severity": "high", "id": "GHSA-27r3-jxmh-p828" },
+      { "package": "fast-uri", "severity": "moderate", "id": "GHSA-w74x-v6f9-j3xg" },
+      { "package": "fast-uri", "severity": "low", "id": "GHSA-xhq7-xmqj-769h" },
+      { "package": "fast-uri", "severity": "moderate", "id": "GHSA-wjr9-j795-jxcr" },
+      { "package": "fast-uri", "severity": "low", "id": "GHSA-333x-w4r6-6crp" },
+      { "package": "minimatch", "severity": "moderate", "id": "GHSA-g3hv-75wg-m249" }
+    ]
+  }
+}

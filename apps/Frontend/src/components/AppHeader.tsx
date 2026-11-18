@@ -27,6 +27,7 @@ export default function AppHeader() {
     try {
       await api("session/logout", { method: "POST", body: "{}" });
       clearAccount();
+      sessionStorage.removeItem("papership-pending");
       sessionStorage.removeItem("orbit-pending");
       localStorage.removeItem("token");
       localStorage.removeItem("userID");
@@ -46,12 +47,12 @@ export default function AppHeader() {
         <Link
           href="/dashboard"
           className="brand"
-          aria-label="OrbitLedger Dashboard"
+          aria-label="Paper Ship Dashboard"
         >
           <span className="brand-mark" aria-hidden="true">
-            O
+            P
           </span>
-          OrbitLedger
+          Paper Ship
         </Link>
         <nav aria-label="Main navigation">
           <Link

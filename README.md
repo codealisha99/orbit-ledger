@@ -1,6 +1,6 @@
-# OrbitLedger
+# Paper Ship
 
-OrbitLedger is a crypto paper trading workspace for BTC, ETH, and SOL. It uses virtual USD collateral and simulated execution quotes derived from Binance public trades. No real assets are bought or sold.
+**Paper Ship** (hosted at `PaperShip.today`) is a high-performance crypto paper trading platform for BTC, ETH, and SOL. It uses virtual USD collateral and simulated execution quotes derived from Binance public market data. No real assets are bought or sold.
 
 Leveraged positions are simulated linear perpetuals with no expiry. The paper funding rule is fixed at 1 basis point every 8 hours (longs pay, shorts receive); it is educational and is not a live exchange funding rate. Funding is booked against isolated collateral and shown in account activity and receipts.
 
